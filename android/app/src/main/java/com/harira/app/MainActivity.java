@@ -4,7 +4,14 @@ import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Matrix;
+import android.media.ExifInterface;
+import android.util.Base64;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
@@ -34,6 +41,8 @@ public class MainActivity extends Activity {
     ValueCallback<Uri[]> fileCb;
     Uri cameraUri;
     View splash;
+    boolean pageReady = false;
+    String pendingPhoto; // صورة رجعت بعد ما أندرويد سكّر التطبيق بالخلفية
 
     @Override
     protected void onCreate(Bundle b) {
@@ -63,7 +72,7 @@ public class MainActivity extends Activity {
                 return true;
             }
             @Override
-            public void onPageFinished(WebView v, String url) { hideSplash(); }
+            public void onPageFinished(WebView v, String url) { hideSplash(); pageReady = true; deliverPending(); }
             @Override
             public void onReceivedError(WebView v, WebResourceRequest r, WebResourceError e) {
                 // أول فتح بدون إنترنت وبدون نسخة محفوظة
@@ -101,7 +110,12 @@ public class MainActivity extends Activity {
             }
         });
 
-        if (b != null) web.restoreState(b); else web.loadUrl(HOME);
+        if (b != null) {
+            String c = b.getString("cam");
+            if (c != null) cameraUri = Uri.parse(c);
+        }
+        // منفتح الصفحة من جديد دائماً: استرجاع الحالة القديمة بعد ما يسكّر النظام التطبيق مو مضمون
+        web.loadUrl(HOME);
         web.postDelayed(this::hideSplash, 8000);
     }
 
@@ -125,6 +139,23 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onActivityResult(int req, int res, Intent data) {
+        if (req == FILE_REQ && fileCb == null) {
+            // النظام سكّر التطبيق وقت الكاميرا: منبعت الصورة للصفحة مباشرة
+            Uri u = null;
+            if (res == RESULT_OK) {
+                if (data != null && data.getData() != null) u = data.getData();
+                else if (cameraUri != null) u = cameraUri;
+            }
+            cameraUri = null;
+            if (u != null) {
+                final Uri fu = u;
+                new Thread(() -> {
+                    String d = toDataUrl(fu);
+                    if (d != null) runOnUiThread(() -> { pendingPhoto = d; deliverPending(); });
+                }).start();
+            }
+            return;
+        }
         if (req == FILE_REQ && fileCb != null) {
             Uri[] out = null;
             if (res == RESULT_OK) {
@@ -141,6 +172,41 @@ public class MainActivity extends Activity {
             return;
         }
         super.onActivityResult(req, res, data);
+    }
+
+    void deliverPending() {
+        if (!pageReady || pendingPhoto == null) return;
+        String js = "(function t(n){if(window.hariraReceivePhoto){hariraReceivePhoto('" + pendingPhoto + "')}else if(n<40){setTimeout(function(){t(n+1)},250)}})(0)";
+        pendingPhoto = null;
+        web.evaluateJavascript(js, null);
+    }
+
+    // قراءة الصورة وتصغيرها وتدويرها حسب الكاميرا، ثم تحويلها لنص يفهمه المتصفح
+    String toDataUrl(Uri u) {
+        try {
+            BitmapFactory.Options o = new BitmapFactory.Options();
+            o.inJustDecodeBounds = true;
+            try (InputStream in = getContentResolver().openInputStream(u)) { BitmapFactory.decodeStream(in, null, o); }
+            int sample = 1;
+            while (Math.max(o.outWidth, o.outHeight) / (sample * 2) >= 1280) sample *= 2;
+            BitmapFactory.Options o2 = new BitmapFactory.Options();
+            o2.inSampleSize = sample;
+            Bitmap bm;
+            try (InputStream in = getContentResolver().openInputStream(u)) { bm = BitmapFactory.decodeStream(in, null, o2); }
+            if (bm == null) return null;
+            int deg = 0;
+            try (InputStream in = getContentResolver().openInputStream(u)) {
+                int ori = new ExifInterface(in).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+                deg = ori == ExifInterface.ORIENTATION_ROTATE_90 ? 90 : ori == ExifInterface.ORIENTATION_ROTATE_180 ? 180 : ori == ExifInterface.ORIENTATION_ROTATE_270 ? 270 : 0;
+            } catch (Exception ignored) {}
+            if (deg != 0) {
+                Matrix m = new Matrix(); m.postRotate(deg);
+                bm = Bitmap.createBitmap(bm, 0, 0, bm.getWidth(), bm.getHeight(), m, true);
+            }
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            bm.compress(Bitmap.CompressFormat.JPEG, 85, out);
+            return "data:image/jpeg;base64," + Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
+        } catch (Exception e) { return null; }
     }
 
     View buildSplash() {
@@ -170,7 +236,10 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle o) { super.onSaveInstanceState(o); web.saveState(o); }
+    protected void onSaveInstanceState(Bundle o) {
+        super.onSaveInstanceState(o);
+        if (cameraUri != null) o.putString("cam", cameraUri.toString());
+    }
 
     @Override
     public void onBackPressed() {

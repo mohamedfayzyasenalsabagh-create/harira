@@ -1,9 +1,6 @@
 name: تجربة التطبيق على جوال افتراضي
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ["tests/**", ".github/workflows/test.yml"]
   workflow_run:
     workflows: ["بناء تطبيق أندرويد"]
     types: [completed]

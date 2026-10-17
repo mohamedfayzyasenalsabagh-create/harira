@@ -396,6 +396,14 @@ function go(t, fromPop) {
   render(); scrollTo(0, 0);
 }
 document.querySelectorAll(".tab").forEach(b => b.onclick = () => go(b.dataset.tab));
+// صورة رجعت من الكاميرا بعد ما النظام سكّر التطبيق بالخلفية (من غلاف أندرويد)
+window.hariraReceivePhoto = async dataUrl => {
+  try {
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
+    go("photo"); analyze(file);
+  } catch (e) { toast("ما قدرت افتح الصورة، جرب مرة تانية"); }
+};
 function render() { ({ today: renderToday, add: renderAdd, photo: renderPhoto })[tab](); }
 render();
 

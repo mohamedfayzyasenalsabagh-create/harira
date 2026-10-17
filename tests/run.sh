@@ -11,6 +11,20 @@ echo "شبكة الجوال الافتراضي:" >> $R; adb shell ping -c 2 -W 3
 adb logcat -c
 adb shell am start -n com.harira.app/.MainActivity >/dev/null; sleep 20; shot 1a-home-20s; sleep 40; shot 1-home-60s
 adb shell dumpsys activity activities | grep -q "com.harira.app/.MainActivity" && ok "فتح التطبيق" || bad "فتح التطبيق"
+# تجربة الكاميرا مع خيار "لا تحتفظ بالأنشطة" (متل موبايل ذاكرته قليلة بيسكّر التطبيق بالخلفية)
+adb shell settings put global always_finish_activities 1
+adb shell am force-stop com.harira.app; adb shell am start -n com.harira.app/.MainActivity >/dev/null; sleep 25
+W0=$(adb shell wm size | grep -o '[0-9]*x[0-9]*' | tail -1); X0=${W0%x*}; Y0=${W0#*x}
+adb shell input tap $((X0/6)) $((Y0-Y0/20)); sleep 3; shot c1-photo-tab
+adb shell input tap $((X0*70/100)) $((Y0*31/100)); sleep 6; shot c2-camera
+adb shell input keyevent 27; sleep 5; shot c3-after-shutter
+adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml $OUT/ui-camera.xml >/dev/null 2>&1
+# زر التأكيد بتطبيق الكاميرا: منلاقيه من شجرة الواجهة
+B=$(grep -o 'resource-id="[^"]*\(done\|confirm\|ok\|shutter\)[^"]*"[^>]*bounds="\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]"' $OUT/ui-camera.xml | grep -iv shutter | head -1 | grep -o 'bounds="[^"]*"' | grep -o '[0-9]*' | tr '\n' ' ')
+echo "confirm bounds: $B" >> $R
+if [ -n "$B" ]; then set -- $B; adb shell input tap $((($1+$3)/2)) $((($2+$4)/2)); fi
+sleep 25; shot c4-back-in-app
+adb shell settings put global always_finish_activities 0
 # تبويب أضف أكلة (الوسط تقريباً بأسفل الشاشة)
 W=$(adb shell wm size | grep -o '[0-9]*x[0-9]*' | tail -1); X=${W%x*}; Y=${W#*x}
 adb shell input tap $((X/2)) $((Y-Y/20)); sleep 4; shot 2-add
