@@ -1,0 +1,19 @@
+food.jpg: HTML document, ASCII text, with very long lines (444)
+== openai/gpt-4.1-mini
+HTTP/2 200 
+content-type: text/plain
+
+OK
+
+== openai/gpt-4o-mini
+HTTP/2 200 
+content-type: text/plain
+
+OK
+
+== meta/Llama-4-Scout-17B-16E-Instruct
+HTTP/2 200 
+content-type: text/plain
+
+OK
+
