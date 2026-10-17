@@ -1,0 +1,32 @@
+== https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/int8/1/efficientnet_lite0.tflite
+200 5434517
+general.tflite: Zip archive data, made by v2.0 UNIX, extract using at least v2.0, last modified, last modified Sun, Apr 26 2023 03:26:58, uncompressed size 10473, method=store
+== https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite2/int8/1/efficientnet_lite2.tflite
+200 7165461
+general2.tflite: Zip archive data, made by v2.0 UNIX, extract using at least v2.0, last modified, last modified Sun, Apr 26 2023 03:27:00, uncompressed size 10473, method=store
+== https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite
+200 4117670
+embed.tflite: Zip archive data, made by v2.0 UNIX, extract using at least v2.0, last modified, last modified Sun, Apr 26 2023 03:27:02, uncompressed size 10484, method=store
+== https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_large/float32/1/mobilenet_v3_large.tflite
+200 10889458
+embed_large.tflite: data
+t1.jpg: JPEG image data, Exif standard: [TIFF image data, big-endian, direntries=5, orientation=upper-left, xresolution=74, yresolution=82, resolutionunit=2], baseline, precision 8, 640x480, components 3
+t2.jpg: JPEG image data, Exif standard: [TIFF image data, little-endian, direntries=6, orientation=upper-left, xresolution=100, yresolution=108, resolutionunit=2], baseline, precision 8, 640x427, components 3
+t3.jpg: JPEG image data, Exif standard: [TIFF image data, little-endian, direntries=6, orientation=upper-left, xresolution=94, yresolution=102, resolutionunit=2], baseline, precision 8, 640x853, components 3
+t4.jpg: JPEG image data, Exif standard: [TIFF image data, little-endian, direntries=5, orientation=upper-left, xresolution=74, yresolution=82, resolutionunit=2], baseline, precision 8, 640x427, components 3
+t5.jpg: JPEG image data, Exif standard: [TIFF image data, little-endian, direntries=5, orientation=upper-left, xresolution=74, yresolution=82, resolutionunit=2], baseline, precision 8, 640x480, components 3
+t6.jpg: JPEG image data, Exif standard: [TIFF image data, little-endian, direntries=6, orientation=upper-left, xresolution=86, yresolution=94, resolutionunit=2], baseline, precision 8, 640x960, components 3
+total 27488
+drwxr-xr-x  2 runner runner     4096 Oct 17 17:32 .
+drwxrwxrwt 15 root   root       4096 Oct 17 17:31 ..
+-rw-r--r--  1 runner runner  4117670 Oct 17 17:31 embed.tflite
+-rw-r--r--  1 runner runner 10889458 Oct 17 17:31 embed_large.tflite
+-rw-r--r--  1 runner runner  5434517 Oct 17 17:31 general.tflite
+-rw-r--r--  1 runner runner  7165461 Oct 17 17:31 general2.tflite
+-rw-r--r--  1 runner runner     2325 Oct 17 17:32 log.txt
+-rw-r--r--  1 runner runner    76412 Oct 17 17:31 t1.jpg
+-rw-r--r--  1 runner runner    64345 Oct 17 17:31 t2.jpg
+-rw-r--r--  1 runner runner    77129 Oct 17 17:31 t3.jpg
+-rw-r--r--  1 runner runner    68469 Oct 17 17:31 t4.jpg
+-rw-r--r--  1 runner runner   121886 Oct 17 17:32 t5.jpg
+-rw-r--r--  1 runner runner   105707 Oct 17 17:32 t6.jpg
