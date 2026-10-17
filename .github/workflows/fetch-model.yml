@@ -21,5 +21,6 @@ jobs:
           ls -la >> log.txt; head -5 labels.csv >> log.txt; wc -l labels.csv >> log.txt
           # احتفظ بأول موديل صالح
           for f in a.tflite c.tflite bx/*.tflite; do [ -f "$f" ] && head -c 8 "$f" | grep -q TFL3 && cp "$f" food.tflite && echo "picked $f" >> log.txt && break; done
+          i=0; for u in "https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=640" "https://images.pexels.com/photos/2233348/pexels-photo-2233348.jpeg?auto=compress&w=640" "https://images.pexels.com/photos/1279330/pexels-photo-1279330.jpeg?auto=compress&w=640" "https://images.pexels.com/photos/5779368/pexels-photo-5779368.jpeg?auto=compress&w=640" "https://images.pexels.com/photos/10928214/pexels-photo-10928214.jpeg?auto=compress&w=640"; do i=$((i+1)); curl -sL -A "Mozilla/5.0" -o test$i.jpg "$u"; file test$i.jpg >> log.txt; done
           rm -f a.tflite c.tflite b.tgz; rm -rf bx
           git init -q -b ci-model && git add -A && git -c user.name=ci -c user.email=ci@x commit -qm model && git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-model
