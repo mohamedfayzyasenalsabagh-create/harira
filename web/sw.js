@@ -13,7 +13,7 @@ self.addEventListener("fetch", e => {
   const fonts = u.host.endsWith("googleapis.com") || u.host.endsWith("gstatic.com");
   if (!mine && !fonts) return;
   // ملفات المحلل كبيرة وما بتتغير: من المحفوظ أولاً
-  if (mine && u.pathname.includes("/ml/") && !u.pathname.endsWith("labels.js")) {
+  if (mine && /\/ml\/(.*\.(tflite|wasm|mjs)|wasm\/.*\.js)$/.test(u.pathname)) {
     e.respondWith(caches.open("harira-ml-v1").then(c => c.match(r).then(m => m || fetch(r).then(res => { if (res.ok) c.put(r, res.clone()); return res; }))));
     return;
   }

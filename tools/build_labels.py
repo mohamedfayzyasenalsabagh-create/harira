@@ -47,7 +47,7 @@ TYPES = [
  ("spaghetti|pasta|macaroni|noodle|lasagn|ravioli|gnocchi|penne|fettuccine|linguine|udon|ramen|lo mein|tagliatelle|vermicelli", ("معكرونة / نودلز",160,6,26,4,"صحن",300)),
  ("rice|risotto|pilaf|pilau|paella|biryani|jollof", ("طبق رز",170,6,25,5,"صحن",300)),
  ("sandwich|burger|hot dog|\\bdog\\b|wrap|burrito|taco|sub\\b|panini", ("سندويشة",250,12,25,11,"سندويشة",220)),
- ("cake|torte|gateau|tart\\b|pie\\b|pudding|cookie|biscuit|brownie|muffin|cupcake|donut|doughnut|crumble|cobbler|strudel|meringue|mousse|custard|candy|fudge|toffee|halva|halwa|ice cream|sorbet|gelato|baklava|sweet|dessert|bun\\b", ("حلويات",330,5,45,15,"قطعة",100)),
+ ("cake|torte|gateau|tart\\b|pie\\b|pudding|cookie|biscuit|brownie|muffin|cupcake|donut|doughnut|crumble|cobbler|strudel|meringue|mousse|custard|candy|fudge|toffee|halva|halwa|ice cream|sorbet|gelato|baklava|sweet|dessert|pastry|pastries|shortcake|bun\\b", ("حلويات",330,5,45,15,"قطعة",100)),
  ("pancake|waffle|crêpe|crepe|fritter", ("فطائر / بان كيك",250,6,32,11,"قطعة",60)),
  ("bread|roll\\b|bagel|naan|roti|paratha|pita|loaf|focaccia|baguette|toast|bun|brioche", ("خبز / معجنات",280,9,50,5,"قطعة",80)),
  ("dumpling|gyoza|momo|pierog|wonton|bao\\b|samosa|empanada|pastel|börek|burek|patty|pasty", ("معجنات محشية",230,8,25,11,"قطعة",60)),

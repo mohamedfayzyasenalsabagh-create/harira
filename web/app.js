@@ -18,9 +18,17 @@ const fmt = n => r0(n).toLocaleString("ar-SY");
 const fmt1 = n => r1(n).toLocaleString("ar-SY");
 
 // ---------- التخزين ----------
-let S = { goal: 2000, days: {} };
+let S = { goal: 2000, days: {}, custom: [] };
 try { S = Object.assign(S, JSON.parse(localStorage.getItem("harira") || "{}")); } catch (e) {}
 function save() { try { localStorage.setItem("harira", JSON.stringify(S)); } catch (e) {} }
+// أكلاتي: أكلات أضافها المستخدم، بتنضم لقاعدة الأكلات
+function addCustomToFoods(c) { const f = { id: FOODS.length, n: c[0], c: "أكلاتي", k: c[1], p: c[2], cb: c[3], f: c[4], u: c[5], ug: c[6] }; FOODS.push(f); return f; }
+(S.custom || []).forEach(addCustomToFoods);
+// ذاكرة التعلّم: بصمة كل صورة مع الأكلة اللي اختارها المستخدم (محفوظة على الموبايل بس)
+let LEARN = [];
+try { LEARN = JSON.parse(localStorage.getItem("harira-learn") || "[]"); } catch (e) {}
+function saveLearn() { try { localStorage.setItem("harira-learn", JSON.stringify(LEARN.slice(-300))); } catch (e) {} }
+let learnCtx = null; // { emb } بصمة الصورة الحالية لحتى نتعلم منها لما المستخدم يختار الأكلة
 
 const key = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 let day = new Date();
@@ -158,11 +166,15 @@ function renderAdd() {
   app.innerHTML = `
   <div class="head"><h1>أضف أكلة</h1><span class="muted">${dayLabel()}</span></div>
   <div class="stack">
+    ${learnCtx ? `<div class="note row between" style="gap:8px"><span>اختار الأكلة اللي بالصورة، وبتعلّمها للمرة الجاية.</span><button class="chip" id="learn-x">إلغاء</button></div>` : ""}
     <input id="q" type="search" placeholder="دوّر: رز، شاورما، تفاح…" value="${esc(query)}" aria-label="ابحث عن أكلة">
     <div class="chips">${cats.map(c => `<button class="chip" aria-pressed="${c === cat}" data-cat="${esc(c)}">${esc(c)}</button>`).join("")}</div>
     <div class="card foods" id="list"></div>
+    <button class="btn ghost" id="new-food">+ أكلة مو موجودة؟ أضفها لأكلاتي</button>
     <p class="muted" style="font-size:12px;margin:0">القيم تقريبية لكل ١٠٠ غرام، وبتختلف حسب طريقة الطبخ والمكونات.</p>
   </div>`;
+  const lx = $("#learn-x"); if (lx) lx.onclick = () => { learnCtx = null; renderAdd(); };
+  $("#new-food").onclick = customSheet;
   const q = $("#q");
   q.oninput = () => { query = q.value; drawList(); };
   app.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { cat = b.dataset.cat; renderAdd(); });
@@ -175,8 +187,29 @@ function drawList() {
   $("#list").innerHTML = list.length ? list.slice(0, 120).map(f => `<button class="food" data-id="${f.id}">
       <span class="t">${esc(f.n)}<small>${esc(f.c)} · ١ ${esc(f.u)} ≈ ${fmt(f.ug)} غ</small></span>
       <span class="k num">${fmt(f.k)} <small class="muted">/١٠٠غ</small></span></button>`).join("")
-    : `<div class="empty"><p>ما لقيت "${esc(query)}".</p><p class="muted">جرّب اسم تاني، أو صوّر الأكلة من تبويب "من صورة".</p></div>`;
+    : `<div class="empty"><p>ما لقيت "${esc(query)}".</p><p class="muted">جرّب اسم تاني، أو أضفها لأكلاتي من الزر تحت.</p></div>`;
   $("#list").querySelectorAll("[data-id]").forEach(b => b.onclick = () => qtySheet(FOODS[+b.dataset.id]));
+}
+
+function customSheet() {
+  sheet(`<h2>أكلة جديدة لأكلاتي</h2>
+    <label class="muted" for="c-n">الاسم</label><input id="c-n" type="text" value="${esc(query)}" placeholder="مثلاً: كبة نية، فطيرة جدتي…">
+    <label class="muted" for="c-k">السعرات بكل ١٠٠ غرام</label><input id="c-k" type="number" inputmode="decimal" placeholder="مثلاً ٢٠٠">
+    <p class="muted" style="margin:0;font-size:13px">إذا ما بتعرفها، اكتب رقم أكلة بتشبهها من القائمة، أو شوف المكتوب على الغلاف.</p>
+    <div class="row"><div style="flex:1"><label class="muted" for="c-u">الوحدة</label><input id="c-u" type="text" value="صحن"></div>
+      <div style="flex:1"><label class="muted" for="c-g">غرامات الوحدة</label><input id="c-g" type="number" inputmode="decimal" value="250"></div></div>
+    <button class="btn" id="c-save">احفظ واستعملها</button>`, el => {
+    $("#c-save", el).onclick = () => {
+      const n = $("#c-n", el).value.trim(), k = +$("#c-k", el).value, u = $("#c-u", el).value.trim() || "حصة", ug = +$("#c-g", el).value || 100;
+      if (!n) return toast("اكتب اسم الأكلة");
+      if (!(k >= 0 && k <= 900)) return toast("اكتب السعرات بين ٠ و٩٠٠ لكل ١٠٠ غرام");
+      // تقدير تقريبي للعناصر من السعرات: ٢٠٪ بروتين، ٥٠٪ كربوهيدرات، ٣٠٪ دهون
+      const c = [n, k, r1(k * .2 / 4), r1(k * .5 / 4), r1(k * .3 / 9), u, ug];
+      (S.custom = S.custom || []).push(c); save();
+      const f = addCustomToFoods(c);
+      closeSheet(); setTimeout(() => qtySheet(f), 50);
+    };
+  });
 }
 
 function qtySheet(f, src, g0) {
@@ -208,9 +241,12 @@ function qtySheet(f, src, g0) {
     el.querySelectorAll("[data-g]").forEach(b => b.onclick = () => { gr.value = b.dataset.g; upd(); });
     $("#add", el).onclick = () => {
       const v = calc(f, g);
-      addEntry({ n: f.n, g, ...v, meal: $("#meal", el).value, ...(src ? { src } : {}) });
+      const fromPhoto = !!learnCtx;
+      query = "";
+      if (learnCtx) { learn(learnCtx.emb, f, g); learnCtx = null; }
+      addEntry({ n: f.n, g, ...v, meal: $("#meal", el).value, ...(src || fromPhoto ? { src: "photo" } : {}) });
       closeSheet(); toast(`انضافت: ${f.n} (${fmt(v.k)} سعرة)`);
-      if (src === "photo") { photo = null; go("today"); }
+      if (src === "photo" || fromPhoto) { photo = null; go("today"); }
     };
     upd();
   });
@@ -244,12 +280,12 @@ function renderPhoto() {
       const mul = SIZES[p.size || 1][1];
       inner = p.cands.length ? `<div class="stack" style="gap:8px"><b>شو هالأكلة؟ اختار الصح:</b>
         <div class="row" style="flex-wrap:wrap;gap:6px"><span class="muted" style="font-size:13px">حجم الحصة:</span>${SIZES.map((z, i) => `<button class="chip" data-size="${i}" aria-pressed="${(p.size || 1) === i}">${z[0]}</button>`).join("")}</div>
-        <div class="foods">${p.cands.map((c, i) => { const g = r0(c.food.ug * mul / 5) * 5; return `<button class="food" data-cand="${i}">
-          <span class="t">${esc(c.food.gen ? c.food.type : c.food.n)}<small>${c.food.gen ? esc(c.en) + " · " : ""}تقريباً ${fmt(g)} غ (${esc(c.food.u)}) · ${fmt(c.score * 100)}٪ ثقة</small></span>
+        <div class="foods">${p.cands.map((c, i) => { const g = c.learned && c.g ? r0(c.g * mul / 5) * 5 : r0(c.food.ug * mul / 5) * 5; return `<button class="food" data-cand="${i}">
+          <span class="t">${c.learned ? "⭐ " : ""}${esc(c.food.gen ? c.food.type : c.food.n)}<small>${c.learned ? "تعلّمتها منك · " : ""}${c.food.gen && c.en ? esc(c.en) + " · " : ""}تقريباً ${fmt(g)} غ (${esc(c.food.u)}) · ${fmt(c.score * 100)}٪ ثقة</small></span>
           <span class="k num">≈ ${fmt(c.food.k * g / 100)}<small class="muted" style="display:block">سعرة</small></span></button>`; }).join("")}</div></div>
         ${best < 0.25 ? `<p class="note">مو متأكد كتير من هالصورة. إذا ولا وحدة صح، دوّر عليها بالاسم.</p>` : ""}`
         : `<p style="margin:0">ما قدرت ميّز أكل بهالصورة. جرّب صورة أقرب وأوضح.</p>`;
-      inner += `<div class="row" style="flex-wrap:wrap"><button class="btn ghost" data-go="add">ما لقيت أكلتي، دوّر بالاسم</button></div>
+      inner += `<div class="row" style="flex-wrap:wrap"><button class="btn ghost" data-go="add">ما لقيت أكلتي؟ اختارها وعلّمني ياها</button></div>
         <button class="chip" id="cloud" style="align-self:flex-start">تحليل أونلاين للصحن كلو مع الغرامات (أبطأ)</button>`;
     } else if (p.state === "done") {
       inner = p.items.length ? `<div>${p.items.map((it, i) => `<div class="ai-item">
@@ -272,9 +308,13 @@ function renderPhoto() {
   const retry = $("#retry"); if (retry) retry.onclick = () => analyze(p.file);
   const cloud = $("#cloud"); if (cloud) cloud.onclick = () => cloudAnalyze();
   const cc = $("#cancel-cloud"); if (cc) cc.onclick = () => { p.cloudCtl && p.cloudCtl.abort(); p.state = p.cands ? "local" : "error"; renderPhoto(); };
-  app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => go(b.dataset.go));
+  app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { if (p && p.emb && b.dataset.go === "add") learnCtx = { emb: p.emb }; query = ""; go(b.dataset.go); });
   app.querySelectorAll("[data-size]").forEach(b => b.onclick = () => { p.size = +b.dataset.size; renderPhoto(); });
-  app.querySelectorAll("[data-cand]").forEach(b => b.onclick = () => { const f = p.cands[+b.dataset.cand].food; qtySheet(f, "photo", r0(f.ug * SIZES[p.size || 1][1] / 5) * 5); });
+  app.querySelectorAll("[data-cand]").forEach(b => b.onclick = () => {
+    const c = p.cands[+b.dataset.cand], base = c.learned && c.g ? c.g : c.food.ug;
+    learnCtx = { emb: p.emb };
+    qtySheet(c.food, "photo", r0(base * SIZES[p.size || 1][1] / 5) * 5);
+  });
   if (p && p.state === "done" && p.items.length) {
     const tot = () => {
       let s = 0;
@@ -300,117 +340,73 @@ function renderPhoto() {
 // تحميل موديل الأكل مرة وحدة (بالتطبيق بيجي من جوّا الـ APK، وبالمتصفح بينحفظ بعد أول مرة)
 let clsPromise = null;
 function loadScript(src) { return new Promise((ok, bad) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); }); }
-function getClassifier() {
+// تلات موديلات من جوجل بتشتغل على الموبايل: طبخات (٢٠٠٠ صنف)، عام (فواكه وخضار ومكونات)، وبصمة الصورة للتعلّم
+function getModels() {
   if (!clsPromise) {
     clsPromise = (async () => {
       if (typeof ML_LABELS === "undefined") await loadScript("ml/labels.js");
-      const { FilesetResolver, ImageClassifier } = await import(new URL("ml/vision_bundle.mjs", location.href).href);
+      if (typeof ML_GENERAL === "undefined") await loadScript("ml/general.js");
+      const { FilesetResolver, ImageClassifier, ImageEmbedder } = await import(new URL("ml/vision_bundle.mjs", location.href).href);
       const files = await FilesetResolver.forVisionTasks(new URL("ml/wasm", location.href).href);
-      return ImageClassifier.createFromOptions(files, { baseOptions: { modelAssetPath: new URL("ml/food.tflite", location.href).href }, maxResults: 30, runningMode: "IMAGE" });
+      const url = n => new URL("ml/" + n, location.href).href;
+      const [food, general, embed] = await Promise.all([
+        ImageClassifier.createFromOptions(files, { baseOptions: { modelAssetPath: url("food.tflite") }, maxResults: 30, runningMode: "IMAGE" }),
+        ImageClassifier.createFromOptions(files, { baseOptions: { modelAssetPath: url("general.tflite") }, maxResults: 10, runningMode: "IMAGE" }).catch(() => null),
+        ImageEmbedder.createFromOptions(files, { baseOptions: { modelAssetPath: url("embed.tflite") }, quantize: true, l2Normalize: true, runningMode: "IMAGE" }).catch(() => null),
+      ]);
+      return { food, general, embed };
     })();
     clsPromise.catch(() => { clsPromise = null; });
   }
   return clsPromise;
 }
-// نتائج الموديل ← أكلات من القاعدة، أو نوع عام بسعرات تقريبية إذا الأكلة مو عنا
-function toCandidates(categories) {
+const b64e = u8 => { let s = ""; for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]); return btoa(s); };
+const b64d = s => Int8Array.from(atob(s), c => (c.charCodeAt(0) << 24) >> 24);
+function cosine(a, b) { let d = 0, na = 0, nb = 0; for (let i = 0; i < a.length; i++) { d += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; } return d / (Math.sqrt(na * nb) || 1); }
+function learn(emb, f, g) {
+  if (!emb) return;
+  LEARN.push({ e: emb, f: { n: f.n, c: f.c, k: f.k, p: f.p, cb: f.cb, f: f.f, u: f.u, ug: f.ug, gen: f.gen, type: f.type }, g });
+  saveLearn();
+}
+function foodFromLabel(e) {
+  if (e[1]) return FOODS.find(f => f.n === e[1]);
+  return { n: `${e[2]} (${e[0]})`, type: e[2], c: "من صورة", k: e[3], p: e[4], cb: e[5], f: e[6], u: e[7], ug: e[8], gen: true };
+}
+// دمج: اللي تعلّمه من المستخدم أولاً، بعدين أقوى نتائج الموديلين
+function toCandidates(foodCats, generalCats, emb) {
   const out = [], seen = new Set();
-  for (const c of categories) {
-    const e = ML_LABELS[c.index];
-    if (!e) continue;
-    let food;
-    if (e[1]) food = FOODS.find(f => f.n === e[1]);
-    else food = { n: `${e[2]} (${e[0]})`, type: e[2], c: "من صورة", k: e[3], p: e[4], cb: e[5], f: e[6], u: e[7], ug: e[8], gen: true };
-    if (!food || seen.has(food.n)) continue;
-    seen.add(food.n);
-    out.push({ food, en: e[0], score: c.score });
-    if (out.length === 3) break;
+  const push = (food, score, extra) => { if (!food || seen.has(food.n)) return; seen.add(food.n); out.push({ food, score, ...extra }); };
+  if (emb && LEARN.length) {
+    const q = b64d(emb), best = {};
+    for (const it of LEARN) { const sim = cosine(q, b64d(it.e)); if (!best[it.f.n] || sim > best[it.f.n].sim) best[it.f.n] = { sim, it }; }
+    Object.values(best).filter(x => x.sim >= 0.45).sort((a, b) => b.sim - a.sim).slice(0, 2).forEach(({ sim, it }) => {
+      const food = FOODS.find(f => f.n === it.f.n) || it.f;
+      push(food, Math.min(0.99, 0.5 + sim / 2), { learned: true, g: it.g, en: food.gen ? (food.n.match(/\((.*)\)$/) || [])[1] : "" });
+    });
   }
+  const pool = [];
+  for (const c of foodCats) { const e = ML_LABELS[c.index]; if (e) pool.push({ food: foodFromLabel(e), en: e[0], score: c.score }); }
+  for (const c of generalCats) { const n = ML_GENERAL[c.index]; if (n && c.score >= 0.12) pool.push({ food: FOODS.find(f => f.n === n), en: "", score: c.score }); }
+  pool.sort((a, b) => b.score - a.score);
+  for (const c of pool) { if (out.length >= 4) break; push(c.food, c.score, { en: c.en }); }
   return out;
-}
-
-// الموديلات المجانية اللي بتفهم الصور، منجيبها من OpenRouter ومنحفظها يوم
-async function visionModels() {
-  try { const c = JSON.parse(localStorage.getItem("harira-models3") || "null"); if (c && Date.now() - c.t < 864e5 && c.list.length) return c.list; } catch (e) {}
-  const pref = ["gemma", "llama-4", "qwen", "mistral", "gemini", "kimi", "nemotron"];
-  let list = [], paid = [];
-  try {
-    const r = await fetch(OR + "/models");
-    const all = ((await r.json()).data || []).filter(m => ((m.architecture && m.architecture.input_modalities) || []).includes("image") && !/safety|guard|embed|inkling/i.test(m.id));
-    // الموديل الأساسي: أحدث Gemini Flash (سريع ودقيق ورخيص جداً، بيشتغل إذا الحساب فيه رصيد)
-    const ver = id => parseFloat((id.match(/gemini-([\d.]+)/) || [])[1] || 0);
-    paid = all.map(m => m.id).filter(id => /^google\/gemini-[\d.]+-flash(-preview)?$/.test(id)).sort((x, y) => ver(y) - ver(x)).slice(0, 1);
-    list = all.map(m => m.id).filter(id => /:free$/.test(id));
-    const rank = id => { const i = pref.findIndex(p => id.toLowerCase().includes(p)); return i < 0 ? 99 : i; };
-    list.sort((x, y) => rank(x) - rank(y));
-  } catch (e) {}
-  if (!paid.length) paid = ["google/gemini-2.5-flash"];
-  list = [...paid, ...list];
-  try { localStorage.setItem("harira-models3", JSON.stringify({ t: Date.now(), list })); } catch (e) {}
-  return list;
-}
-function parseJSON(t) {
-  const f = String(t || "").match(/```(?:json)?\s*([\s\S]*?)```/); const b = f ? f[1] : String(t || "");
-  const a = b.indexOf("{"), z = b.lastIndexOf("}"); if (a < 0 || z < a) throw new Error("bad json");
-  return JSON.parse(b.slice(a, z + 1));
-}
-async function askVision(dataUrl) {
-  const models = (await visionModels()).slice(0, 4);
-  let last = "الخدمة مشغولة هلق. جرب بعد شوي.";
-  for (const model of models) {
-    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), model.endsWith(":free") ? 25000 : 30000);
-    try {
-      const r = await fetch(OR + "/chat/completions", {
-        method: "POST", signal: ctl.signal,
-        headers: { "Authorization": "Bearer " + ORK, "Content-Type": "application/json", "HTTP-Referer": "https://mohamedfayzyasenalsabagh-create.github.io/harira/", "X-Title": "Harira" },
-        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 4000, reasoning: { effort: "low", exclude: true },
-          messages: [{ role: "user", content: [{ type: "text", text: AI_PROMPT }, { type: "image_url", image_url: { url: dataUrl } }] }] })
-      });
-      const raw = await r.text();
-      let j = {};
-      try { j = JSON.parse(raw.split("\n").filter(l => !l.startsWith(":")).join("\n").trim() || "{}"); } catch (e) { if (globalThis.HARIRA_DEBUG) console.log(model, "RAW", raw.slice(0, 400)); }
-      if (r.status === 401 || r.status === 403) { last = "في مشكلة بمفتاح خدمة الصور. خبّر صاحب التطبيق."; if (r.status === 401) break; continue; }
-      if (r.status === 402) { if (!model.endsWith(":free")) continue; last = "خلص رصيد خدمة الصور. خبّر صاحب التطبيق."; break; }
-      if (r.status === 429) {
-        const msg = JSON.stringify(j).toLowerCase();
-        if (msg.includes("per-day") || msg.includes("per day") || msg.includes("free-models-per-day")) { last = "خلص حد التحليل المجاني لليوم. جرب بكرا، أو اختار الأكلة يدوياً."; break; }
-        last = "الخدمة مزحومة هلق. جرب بعد شوي."; continue;
-      }
-      if (globalThis.HARIRA_DEBUG) console.log(model, r.status, JSON.stringify(j).slice(0, 300));
-      if (!r.ok) continue;
-      const text = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
-      return parseJSON(Array.isArray(text) ? text.map(x => x.text || "").join("") : text);
-    } catch (e) { if (globalThis.HARIRA_DEBUG) console.log(model, "ERR", e.name, e.message); if (e.name === "AbortError") last = "التحليل طوّل كتير. جرب مرة تانية."; }
-    finally { clearTimeout(timer); }
-  }
-  throw new Error(last);
-}
-
-// تصغير الصورة قبل الإرسال لتسريع التحليل وتوفير الإنترنت
-function shrink(file, max = 1024) {
-  return new Promise((ok, bad) => {
-    const img = new Image();
-    img.onload = () => {
-      const s = Math.min(1, max / Math.max(img.width, img.height));
-      const c = document.createElement("canvas");
-      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-      ok(c.toDataURL("image/jpeg", 0.82));
-    };
-    img.onerror = () => bad(new Error("ما قدرت افتح الصورة"));
-    img.src = URL.createObjectURL(file);
-  });
 }
 
 async function analyze(file) {
   photo = { file, url: URL.createObjectURL(file), state: "loading", first: !clsPromise };
+  learnCtx = null;
   renderPhoto();
   const p = photo;
   try {
-    const cls = await getClassifier();
+    const m = await getModels();
     const img = new Image(); img.src = p.url; await img.decode();
-    const r = cls.classify(img);
-    p.cands = toCandidates((r.classifications[0] && r.classifications[0].categories) || []);
+    const cats = r => (r && r.classifications[0] && r.classifications[0].categories) || [];
+    const fr = m.food.classify(img);
+    const gr = m.general ? m.general.classify(img) : null;
+    let emb = null;
+    if (m.embed) { const e = m.embed.embed(img).embeddings[0]; if (e && e.quantizedEmbedding) emb = b64e(e.quantizedEmbedding); }
+    p.emb = emb;
+    p.cands = toCandidates(cats(fr), cats(gr), emb);
     p.state = "local";
   } catch (e) {
     p.state = "error";
@@ -465,12 +461,13 @@ function closeSheet(fromPop) {
 window.addEventListener("popstate", () => { if (sheetEl) closeSheet(true); else if (tab !== "today") go("today", true); });
 
 function go(t, fromPop) {
+  if (t === "today") learnCtx = null;
   if (t !== tab && !fromPop && t !== "today") history.pushState({ tab: t }, "");
   tab = t;
   document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t));
   render(); scrollTo(0, 0);
 }
-document.querySelectorAll(".tab").forEach(b => b.onclick = () => go(b.dataset.tab));
+document.querySelectorAll(".tab").forEach(b => b.onclick = () => { learnCtx = null; go(b.dataset.tab); });
 // صورة رجعت من الكاميرا بعد ما النظام سكّر التطبيق بالخلفية (من غلاف أندرويد)
 window.hariraReceivePhoto = async dataUrl => {
   try {

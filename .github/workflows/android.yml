@@ -16,7 +16,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: "8.9" }
       - name: نسخ محلل الصور لجوّا التطبيق
-        run: mkdir -p android/app/src/main/assets/ml && cp -r web/ml/vision_bundle.mjs web/ml/food.tflite web/ml/wasm android/app/src/main/assets/ml/
+        run: mkdir -p android/app/src/main/assets/ml && cp -r web/ml/vision_bundle.mjs web/ml/food.tflite web/ml/general.tflite web/ml/embed.tflite web/ml/wasm android/app/src/main/assets/ml/
       - name: بناء APK الموقّع
         env:
           VERSION_CODE: "${{ github.run_number }}"
