@@ -1,0 +1,25 @@
+name: تنزيل موديل الأكل
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/fetch-model.yml"]
+permissions:
+  contents: write
+jobs:
+  get:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          mkdir -p /tmp/m && cd /tmp/m
+          try(){ echo "== $1" >> log.txt; curl -sSL -A "Mozilla/5.0" -o "$2" "$1" -w "%{http_code} %{size_download}\n" >> log.txt 2>&1; file "$2" >> log.txt; }
+          try "https://tfhub.dev/google/lite-model/aiy/vision/classifier/food_V1/1?lite-format=tflite" a.tflite
+          try "https://www.kaggle.com/api/v1/models/google/aiy/tfLite/vision-classifier-food-v1/1/download" b.tgz
+          try "https://storage.googleapis.com/tfhub-lite-models/google/lite-model/aiy/vision/classifier/food_V1/1.tflite" c.tflite
+          try "https://www.gstatic.com/aihub/tfhub/labelmaps/aiy_food_V1_labelmap.csv" labels.csv
+          (file b.tgz | grep -q gzip) && mkdir -p bx && tar xzf b.tgz -C bx && ls -la bx >> log.txt
+          ls -la >> log.txt; head -5 labels.csv >> log.txt; wc -l labels.csv >> log.txt
+          # احتفظ بأول موديل صالح
+          for f in a.tflite c.tflite bx/*.tflite; do [ -f "$f" ] && head -c 8 "$f" | grep -q TFL3 && cp "$f" food.tflite && echo "picked $f" >> log.txt && break; done
+          rm -f a.tflite c.tflite b.tgz; rm -rf bx
+          git init -q -b ci-model && git add -A && git -c user.name=ci -c user.email=ci@x commit -qm model && git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-model
