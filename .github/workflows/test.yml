@@ -1,0 +1,34 @@
+name: تجربة التطبيق على جوال افتراضي
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["tests/**", ".github/workflows/test.yml"]
+  workflow_run:
+    workflows: ["بناء تطبيق أندرويد"]
+    types: [completed]
+permissions:
+  contents: write
+jobs:
+  device:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: تفعيل KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: bash tests/run.sh
+      - name: حفظ النتيجة
+        if: always()
+        run: |
+          git config --global user.name "harira-ci"; git config --global user.email "ci@harira.app"
+          mkdir -p /tmp/r && cp -r .results/. /tmp/r/ 2>/dev/null || true
+          cd /tmp/r && git init -q -b ci-results && git add -A && git commit -qm "نتيجة التجربة" && git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-results
