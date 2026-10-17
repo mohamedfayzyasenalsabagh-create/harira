@@ -76,7 +76,7 @@ function renderToday() {
     if (!items.length) return "";
     const sum = items.reduce((a, x) => a + x.e.k, 0);
     return `<div class="card meal"><div class="row between"><h2>${m}</h2><span class="num muted">${fmt(sum)} سعرة</span></div>
-      ${items.map(({ e, i }) => `<div class="entry"><div class="t"><b>${esc(e.n)}</b><small class="muted num">${fmt(e.g)} غرام${e.src === "ai" ? " · من صورة" : ""}</small></div>
+      ${items.map(({ e, i }) => `<div class="entry"><div class="t"><b>${esc(e.n)}</b><small class="muted num">${fmt(e.g)} غرام${e.src ? " · من صورة" : ""}</small></div>
         <span class="k num">${fmt(e.k)}</span><button class="del" data-del="${i}" aria-label="احذف ${esc(e.n)}">×</button></div>`).join("")}</div>`;
   }).join("");
 
@@ -179,8 +179,8 @@ function drawList() {
   $("#list").querySelectorAll("[data-id]").forEach(b => b.onclick = () => qtySheet(FOODS[+b.dataset.id]));
 }
 
-function qtySheet(f) {
-  let g = f.ug;
+function qtySheet(f, src, g0) {
+  let g = g0 || f.ug;
   let meal = guessMeal();
   sheet(`<div class="row between"><h2>${esc(f.n)}</h2><span class="muted num">${fmt(f.k)} سعرة/١٠٠غ</span></div>
     <label class="muted" for="gr">الكمية بالغرام</label>
@@ -208,32 +208,50 @@ function qtySheet(f) {
     el.querySelectorAll("[data-g]").forEach(b => b.onclick = () => { gr.value = b.dataset.g; upd(); });
     $("#add", el).onclick = () => {
       const v = calc(f, g);
-      addEntry({ n: f.n, g, ...v, meal: $("#meal", el).value });
+      addEntry({ n: f.n, g, ...v, meal: $("#meal", el).value, ...(src ? { src } : {}) });
       closeSheet(); toast(`انضافت: ${f.n} (${fmt(v.k)} سعرة)`);
+      if (src === "photo") { photo = null; go("today"); }
     };
     upd();
   });
 }
 
 // ---------- شاشة الصورة ----------
-let photo = null; // { url, blob, items, note, state }
+// التعرّف جوّا الموبايل بموديل جوجل للأكل (مجاني، بدون حد، بيشتغل بدون نت)، والتحليل الأونلاين خيار إضافي
+const SIZES = [["صغيرة", 0.7], ["وسط", 1], ["كبيرة", 1.4]];
+let photo = null; // { file, url, state: loading|local|cloud-loading|done|error, cands, items, note, error }
 function renderPhoto() {
   const p = photo;
   let body;
   if (!p) {
     body = `<div class="card drop">
       <div class="bowl" style="font-family:var(--display);font-size:44px;color:var(--saffron)">ح</div>
-      <p style="margin:0">صوّر صحنك من فوق وبضوء منيح، وأنا بقدّرلك شو فيه وكم سعراته.</p>
+      <p style="margin:0">صوّر صحنك من قريب وبضوء منيح، وأنا بقلك شو هالأكلة.</p>
       <div class="row" style="flex-wrap:wrap;justify-content:center">
         <label class="btn" for="cam">صوّر</label><label class="btn ghost" for="gal">اختار من المعرض</label></div>
       <input id="cam" type="file" accept="image/*" capture="environment" hidden>
       <input id="gal" type="file" accept="image/*" hidden></div>
-      <p class="note">التقدير بالصورة تقريبي. إذا بتعرف الكمية بالغرام، عدّلها قبل ما تضيف.</p>`;
+      <p class="note">التعرّف بيصير على موبايلك نفسه، بدون نت وبدون حد يومي. صوّر أكلة وحدة بكل صورة لنتيجة أدق.</p>`;
   } else {
     let inner = "";
-    if (p.state === "loading") inner = `<div class="row" style="justify-content:center;padding:18px"><div class="spinner"></div><span>عم حلل الصورة…</span></div>`;
-    else if (p.state === "error") inner = `<p style="color:var(--tomato);margin:0">${esc(p.error)}</p><button class="btn" id="retry">جرّب مرة تانية</button>`;
-    else if (p.state === "done") {
+    if (p.state === "loading") inner = `<div class="row" style="justify-content:center;padding:18px"><div class="spinner"></div><span>${p.first ? "عم جهّز المحلل لأول مرة…" : "عم اتعرّف على الأكلة…"}</span></div>`;
+    else if (p.state === "cloud-loading") inner = `<div class="row" style="justify-content:center;padding:18px"><div class="spinner"></div><span>عم حلل أونلاين، ممكن ياخد دقيقة…</span></div>
+      <button class="btn ghost" id="cancel-cloud">رجوع للاقتراحات</button>`;
+    else if (p.state === "error") inner = `<p style="color:var(--tomato);margin:0">${esc(p.error)}</p>
+      <div class="row" style="flex-wrap:wrap"><button class="btn" id="retry">جرّب مرة تانية</button><button class="btn ghost" data-go="add">دوّر بالأسماء</button></div>`;
+    else if (p.state === "local") {
+      const best = p.cands[0] ? p.cands[0].score : 0;
+      const mul = SIZES[p.size || 1][1];
+      inner = p.cands.length ? `<div class="stack" style="gap:8px"><b>شو هالأكلة؟ اختار الصح:</b>
+        <div class="row" style="flex-wrap:wrap;gap:6px"><span class="muted" style="font-size:13px">حجم الحصة:</span>${SIZES.map((z, i) => `<button class="chip" data-size="${i}" aria-pressed="${(p.size || 1) === i}">${z[0]}</button>`).join("")}</div>
+        <div class="foods">${p.cands.map((c, i) => { const g = r0(c.food.ug * mul / 5) * 5; return `<button class="food" data-cand="${i}">
+          <span class="t">${esc(c.food.gen ? c.food.type : c.food.n)}<small>${c.food.gen ? esc(c.en) + " · " : ""}تقريباً ${fmt(g)} غ (${esc(c.food.u)}) · ${fmt(c.score * 100)}٪ ثقة</small></span>
+          <span class="k num">≈ ${fmt(c.food.k * g / 100)}<small class="muted" style="display:block">سعرة</small></span></button>`; }).join("")}</div></div>
+        ${best < 0.25 ? `<p class="note">مو متأكد كتير من هالصورة. إذا ولا وحدة صح، دوّر عليها بالاسم.</p>` : ""}`
+        : `<p style="margin:0">ما قدرت ميّز أكل بهالصورة. جرّب صورة أقرب وأوضح.</p>`;
+      inner += `<div class="row" style="flex-wrap:wrap"><button class="btn ghost" data-go="add">ما لقيت أكلتي، دوّر بالاسم</button></div>
+        <button class="chip" id="cloud" style="align-self:flex-start">تحليل أونلاين للصحن كلو مع الغرامات (أبطأ)</button>`;
+    } else if (p.state === "done") {
       inner = p.items.length ? `<div>${p.items.map((it, i) => `<div class="ai-item">
           <input type="checkbox" data-chk="${i}" ${it.on ? "checked" : ""} aria-label="ضمّن ${esc(it.name)}">
           <div><b>${esc(it.name)}</b><small class="muted num" style="display:block" id="k${i}">${fmt(it.kcal100 * it.grams / 100)} سعرة</small></div>
@@ -252,6 +270,11 @@ function renderPhoto() {
   ["cam", "gal"].forEach(id => { const el = $("#" + id); if (el) el.onchange = () => el.files[0] && analyze(el.files[0]); });
   const again = $("#again"); if (again) again.onclick = () => { photo = null; renderPhoto(); };
   const retry = $("#retry"); if (retry) retry.onclick = () => analyze(p.file);
+  const cloud = $("#cloud"); if (cloud) cloud.onclick = () => cloudAnalyze();
+  const cc = $("#cancel-cloud"); if (cc) cc.onclick = () => { p.cloudCtl && p.cloudCtl.abort(); p.state = p.cands ? "local" : "error"; renderPhoto(); };
+  app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => go(b.dataset.go));
+  app.querySelectorAll("[data-size]").forEach(b => b.onclick = () => { p.size = +b.dataset.size; renderPhoto(); });
+  app.querySelectorAll("[data-cand]").forEach(b => b.onclick = () => { const f = p.cands[+b.dataset.cand].food; qtySheet(f, "photo", r0(f.ug * SIZES[p.size || 1][1] / 5) * 5); });
   if (p && p.state === "done" && p.items.length) {
     const tot = () => {
       let s = 0;
@@ -272,6 +295,38 @@ function renderPhoto() {
     };
     tot();
   }
+}
+
+// تحميل موديل الأكل مرة وحدة (بالتطبيق بيجي من جوّا الـ APK، وبالمتصفح بينحفظ بعد أول مرة)
+let clsPromise = null;
+function loadScript(src) { return new Promise((ok, bad) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); }); }
+function getClassifier() {
+  if (!clsPromise) {
+    clsPromise = (async () => {
+      if (typeof ML_LABELS === "undefined") await loadScript("ml/labels.js");
+      const { FilesetResolver, ImageClassifier } = await import(new URL("ml/vision_bundle.mjs", location.href).href);
+      const files = await FilesetResolver.forVisionTasks(new URL("ml/wasm", location.href).href);
+      return ImageClassifier.createFromOptions(files, { baseOptions: { modelAssetPath: new URL("ml/food.tflite", location.href).href }, maxResults: 30, runningMode: "IMAGE" });
+    })();
+    clsPromise.catch(() => { clsPromise = null; });
+  }
+  return clsPromise;
+}
+// نتائج الموديل ← أكلات من القاعدة، أو نوع عام بسعرات تقريبية إذا الأكلة مو عنا
+function toCandidates(categories) {
+  const out = [], seen = new Set();
+  for (const c of categories) {
+    const e = ML_LABELS[c.index];
+    if (!e) continue;
+    let food;
+    if (e[1]) food = FOODS.find(f => f.n === e[1]);
+    else food = { n: `${e[2]} (${e[0]})`, type: e[2], c: "من صورة", k: e[3], p: e[4], cb: e[5], f: e[6], u: e[7], ug: e[8], gen: true };
+    if (!food || seen.has(food.n)) continue;
+    seen.add(food.n);
+    out.push({ food, en: e[0], score: c.score });
+    if (out.length === 3) break;
+  }
+  return out;
 }
 
 // الموديلات المجانية اللي بتفهم الصور، منجيبها من OpenRouter ومنحفظها يوم
@@ -348,26 +403,46 @@ function shrink(file, max = 1024) {
 }
 
 async function analyze(file) {
-  photo = { file, url: URL.createObjectURL(file), state: "loading", items: [] };
+  photo = { file, url: URL.createObjectURL(file), state: "loading", first: !clsPromise };
   renderPhoto();
+  const p = photo;
   try {
-    if (!navigator.onLine) throw new Error("تحليل الصور بدو إنترنت. تأكد من الاتصال وجرب مرة تانية.");
-    const image = await shrink(file);
+    const cls = await getClassifier();
+    const img = new Image(); img.src = p.url; await img.decode();
+    const r = cls.classify(img);
+    p.cands = toCandidates((r.classifications[0] && r.classifications[0].categories) || []);
+    p.state = "local";
+  } catch (e) {
+    p.state = "error";
+    p.error = navigator.onLine ? "ما قدرت شغّل المحلل على هالموبايل. جرّب مرة تانية، أو دوّر على الأكلة بالاسم." : "أول مرة المحلل بيحتاج إنترنت ليتحمّل. اتصل بالنت وجرّب.";
+  }
+  if (photo === p && tab === "photo") renderPhoto();
+}
+
+async function cloudAnalyze() {
+  const p = photo; if (!p) return;
+  const back = p.cands ? "local" : "error";
+  p.state = "cloud-loading"; p.cloudCtl = new AbortController(); renderPhoto();
+  try {
+    if (!navigator.onLine) throw new Error("التحليل الأونلاين بدو إنترنت.");
+    const image = await shrink(p.file, 768);
     const data = await askVision(image);
+    if (p.state !== "cloud-loading") return;
     const items = (data.items || []).map(it => ({
       name: String(it.name || "أكلة"), grams: Math.max(0, +it.grams || 0),
       kcal100: Math.max(0, +it.kcal100 || 0), p100: +it.p100 || 0, c100: +it.c100 || 0, f100: +it.f100 || 0, on: true
     })).filter(it => it.kcal100 > 0 || it.grams > 0);
-    // إذا الأكلة موجودة بقاعدتنا منعتمد قيمها لأنها أدق
     items.forEach(it => {
       const m = FOODS.find(f => norm(f.n) === norm(it.name));
       if (m) Object.assign(it, { kcal100: m.k, p100: m.p, c100: m.cb, f100: m.f });
     });
-    Object.assign(photo, { state: "done", items, note: data.note || "" });
+    Object.assign(p, { state: "done", items, note: data.note || "" });
   } catch (e) {
-    Object.assign(photo, { state: "error", error: e.name === "AbortError" ? "التحليل طوّل كتير. جرب مرة تانية." : (e.message || "صار خطأ") });
+    if (p.state !== "cloud-loading") return;
+    p.state = back;
+    toast(e.message || "التحليل الأونلاين ما زبط هلق");
   }
-  if (tab === "photo") renderPhoto();
+  if (photo === p && tab === "photo") renderPhoto();
 }
 
 // ---------- أدوات عامة ----------

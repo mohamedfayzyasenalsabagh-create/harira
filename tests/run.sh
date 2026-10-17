@@ -39,6 +39,15 @@ sleep 5; shot c3-after-shutter
 tapui 'resource-id="[^"]*(done|confirm|ok_button)[^"]*"|content-desc="[^"]*(Done|OK|Confirm)[^"]*"' confirm
 sleep 25; shot c4-back-in-app
 adb shell settings put global always_finish_activities 0
+# مشاركة صورة سباغيتي للتطبيق ← لازم يتعرف عليها جوّا الموبايل بدون نت
+adb push tests/spaghetti.jpg /sdcard/Pictures/spaghetti.jpg >/dev/null
+adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Pictures/spaghetti.jpg >/dev/null; sleep 5
+ID=$(adb shell content query --uri content://media/external/images/media --projection _id:_display_name | grep spaghetti | grep -o '_id=[0-9]*' | cut -d= -f2 | head -1)
+echo "صورة الاختبار: $ID" >> $R
+adb shell svc wifi disable; adb shell svc data disable; sleep 3
+adb shell am start -a android.intent.action.SEND -t image/jpeg --eu android.intent.extra.STREAM content://media/external/images/media/$ID -n com.harira.app/.MainActivity >/dev/null
+sleep 20; shot s1-shared-offline
+adb shell svc wifi enable; adb shell svc data enable; sleep 5
 # تبويب أضف أكلة (الوسط تقريباً بأسفل الشاشة)
 W=$(adb shell wm size | grep -o '[0-9]*x[0-9]*' | tail -1); X=${W%x*}; Y=${W#*x}
 adb shell input tap $((X/2)) $((Y-Y/20)); sleep 4; shot 2-add

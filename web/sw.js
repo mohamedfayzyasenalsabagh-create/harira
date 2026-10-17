@@ -3,7 +3,7 @@ const CACHE = "harira-v1";
 const CORE = ["./", "index.html", "app.js", "foods.js", "manifest.json", "icon-192.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE))); self.skipWaiting(); });
 self.addEventListener("activate", e => {
-  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && !k.startsWith("harira-ml")).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener("fetch", e => {
   const r = e.request;
@@ -12,6 +12,11 @@ self.addEventListener("fetch", e => {
   const mine = u.origin === location.origin;
   const fonts = u.host.endsWith("googleapis.com") || u.host.endsWith("gstatic.com");
   if (!mine && !fonts) return;
+  // ملفات المحلل كبيرة وما بتتغير: من المحفوظ أولاً
+  if (mine && u.pathname.includes("/ml/") && !u.pathname.endsWith("labels.js")) {
+    e.respondWith(caches.open("harira-ml-v1").then(c => c.match(r).then(m => m || fetch(r).then(res => { if (res.ok) c.put(r, res.clone()); return res; }))));
+    return;
+  }
   // الشبكة أولاً لملفات التطبيق حتى توصل التحديثات فوراً، والمحفوظ إذا ما في نت
   e.respondWith(
     fetch(r).then(res => {

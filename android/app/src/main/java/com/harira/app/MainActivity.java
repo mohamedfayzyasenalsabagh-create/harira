@@ -23,6 +23,10 @@ import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+import android.webkit.ServiceWorkerClient;
+import android.webkit.ServiceWorkerController;
+import java.util.HashMap;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -62,7 +66,16 @@ public class MainActivity extends Activity {
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
         s.setUserAgentString(s.getUserAgentString() + " HariraApp/1");
 
+        // ملفات محلل الصور (موديل الأكل) مخزنة جوّا التطبيق: ما بتنزل من النت أبداً
+        if (Build.VERSION.SDK_INT >= 24) {
+            ServiceWorkerController.getInstance().setServiceWorkerClient(new ServiceWorkerClient() {
+                @Override
+                public WebResourceResponse shouldInterceptRequest(WebResourceRequest r) { return localAsset(r.getUrl()); }
+            });
+        }
         web.setWebViewClient(new WebViewClient() {
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) { return localAsset(r.getUrl()); }
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 Uri u = r.getUrl();
@@ -116,6 +129,7 @@ public class MainActivity extends Activity {
         }
         // منفتح الصفحة من جديد دائماً: استرجاع الحالة القديمة بعد ما يسكّر النظام التطبيق مو مضمون
         web.loadUrl(HOME);
+        handleShare(getIntent());
         web.postDelayed(this::hideSplash, 8000);
     }
 
@@ -172,6 +186,35 @@ public class MainActivity extends Activity {
             return;
         }
         super.onActivityResult(req, res, data);
+    }
+
+    @Override
+    protected void onNewIntent(Intent i) { super.onNewIntent(i); setIntent(i); handleShare(i); }
+
+    // صورة مشاركة من تطبيق تاني ← منفتحها بتبويب "من صورة"
+    void handleShare(Intent i) {
+        if (i == null || !Intent.ACTION_SEND.equals(i.getAction())) return;
+        Uri u = i.getParcelableExtra(Intent.EXTRA_STREAM);
+        if (u == null) return;
+        new Thread(() -> {
+            String d = toDataUrl(u);
+            if (d != null) runOnUiThread(() -> { pendingPhoto = d; deliverPending(); });
+        }).start();
+    }
+
+    WebResourceResponse localAsset(Uri u) {
+        String path = u.getPath();
+        if (!HOST.equals(u.getHost()) || path == null || !path.startsWith("/harira/ml/") || path.endsWith("labels.js")) return null;
+        String name = path.substring("/harira/".length());
+        String type = name.endsWith(".wasm") ? "application/wasm" : (name.endsWith(".js") || name.endsWith(".mjs")) ? "text/javascript" : "application/octet-stream";
+        try {
+            WebResourceResponse res = new WebResourceResponse(type, null, getAssets().open(name));
+            HashMap<String, String> h = new HashMap<>();
+            h.put("Access-Control-Allow-Origin", "*");
+            h.put("Cache-Control", "max-age=31536000");
+            res.setResponseHeaders(h);
+            return res;
+        } catch (Exception e) { return null; } // إذا الملف مو موجود بالتطبيق منجيبه من النت عادي
     }
 
     void deliverPending() {
