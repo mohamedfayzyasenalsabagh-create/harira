@@ -15,31 +15,13 @@ jobs:
         with: { distribution: temurin, java-version: "17" }
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: "8.9" }
-      - name: فحص البناء
-        run: gradle -p android assembleDebug --no-daemon
-      - name: تجهيز مفتاح التوقيع من الأسرار
-        id: key
-        env:
-          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-        run: |
-          if [ -z "$KS_B64" ]; then
-            echo "::warning::لم تُضف أسرار التوقيع بعد، لذلك لن تُنشر نسخة."
-            echo "ok=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
-            echo "ok=true" >> "$GITHUB_OUTPUT"
-          fi
       - name: بناء APK الموقّع
-        if: steps.key.outputs.ok == 'true'
         env:
           VERSION_CODE: "${{ github.run_number }}"
-          KEYSTORE_FILE: "${{ runner.temp }}/release.keystore"
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           gradle -p android assembleRelease --no-daemon
           cp android/app/build/outputs/apk/release/app-release.apk harira.apk
       - uses: softprops/action-gh-release@v2
-        if: steps.key.outputs.ok == 'true'
         with:
           tag_name: app-v${{ github.run_number }}
           name: تطبيق حريره (نسخة ${{ github.run_number }})
