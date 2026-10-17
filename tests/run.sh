@@ -13,7 +13,11 @@ adb shell am start -n com.harira.app/.MainActivity >/dev/null; sleep 20; shot 1a
 adb shell dumpsys activity activities | grep -q "com.harira.app/.MainActivity" && ok "فتح التطبيق" || bad "فتح التطبيق"
 # تجربة الكاميرا مع خيار "لا تحتفظ بالأنشطة" (متل موبايل ذاكرته قليلة بيسكّر التطبيق بالخلفية)
 adb shell settings put global always_finish_activities 1
-adb shell am force-stop com.harira.app; adb shell am start -n com.harira.app/.MainActivity >/dev/null; sleep 25
+sleep 60 # منستنى خدمات جوجل بالجوال الافتراضي تستقر (لما تعيد تشغيل نفسها بتسكّر التطبيقات المعتمدة عليها)
+for try in 1 2 3; do
+  adb shell am force-stop com.harira.app; adb shell am start -n com.harira.app/.MainActivity >/dev/null; sleep 25
+  adb shell dumpsys window | grep -E "mCurrentFocus|mFocusedApp" | grep -q harira && break
+done
 W0=$(adb shell wm size | grep -o '[0-9]*x[0-9]*' | tail -1); X0=${W0%x*}; Y0=${W0#*x}
 adb shell input tap $((X0/6)) $((Y0-Y0/20)); sleep 3; shot c1-photo-tab
 # الضغط على عنصر حسب النص أو المعرّف من شجرة الواجهة
