@@ -116,8 +116,8 @@ try { const c = JSON.parse(localStorage.getItem("harira-sub-cache") || "null"); 
 }
 subState.trialEnds = trialEnds();
 try { const c = JSON.parse(localStorage.getItem("harira-sub-cache") || "null"); if (c && (c.exp === 0 || c.exp > Date.now())) Object.assign(subState, { active: true, lifetime: c.exp === 0, exp: c.exp }); } catch (e) {}
-const isPremium = () => subState.active || isAdmin() || Date.now() < subState.trialEnds;
-const inTrial = () => !subState.active && Date.now() < subState.trialEnds;
+const isPremium = () => subState.active || isAdmin() || (subState.plan !== "stop" && Date.now() < subState.trialEnds); // الإيقاف من الأدمن بيلغي التجربة كمان
+const inTrial = () => !subState.active && subState.plan !== "stop" && Date.now() < subState.trialEnds;
 
 async function applyToken(token) {
   const d = await verifyToken(token);
