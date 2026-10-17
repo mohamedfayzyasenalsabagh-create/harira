@@ -32,7 +32,8 @@ for n in re.findall(r'<node [^>]*>',x):
             a,b,c,d=map(int,m.groups()); print((a+c)//2,(b+d)//2); break
 PY
 ); echo "tap $2 ($1): ${bb:-not found}" >> $R; [ -n "$bb" ] && adb shell input tap $bb; }
-tapui 'text="صوّر"' btn; sleep 6; shot c2-camera
+# محتوى الصفحة ما بيظهر بشجرة الواجهة، فمنضغط زر "صوّر" حسب مكانه (74% عرض، 45% ارتفاع)
+adb shell input tap $((X0*74/100)) $((Y0*45/100)); sleep 8; shot c2-camera
 tapui 'resource-id="[^"]*shutter[^"]*"|content-desc="[^"]*(Shutter|shutter|Take photo|Capture)[^"]*"' shutter || adb shell input keyevent 27
 sleep 5; shot c3-after-shutter
 tapui 'resource-id="[^"]*(done|confirm|ok_button)[^"]*"|content-desc="[^"]*(Done|OK|Confirm)[^"]*"' confirm
