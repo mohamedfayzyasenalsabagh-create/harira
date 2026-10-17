@@ -276,12 +276,12 @@ function renderPhoto() {
 
 // الموديلات المجانية اللي بتفهم الصور، منجيبها من OpenRouter ومنحفظها يوم
 async function visionModels() {
-  try { const c = JSON.parse(localStorage.getItem("harira-models2") || "null"); if (c && Date.now() - c.t < 864e5 && c.list.length) return c.list; } catch (e) {}
+  try { const c = JSON.parse(localStorage.getItem("harira-models3") || "null"); if (c && Date.now() - c.t < 864e5 && c.list.length) return c.list; } catch (e) {}
   const pref = ["gemma", "llama-4", "qwen", "mistral", "gemini", "kimi", "nemotron"];
   let list = [], paid = [];
   try {
     const r = await fetch(OR + "/models");
-    const all = ((await r.json()).data || []).filter(m => ((m.architecture && m.architecture.input_modalities) || []).includes("image") && !/safety|guard|embed/i.test(m.id));
+    const all = ((await r.json()).data || []).filter(m => ((m.architecture && m.architecture.input_modalities) || []).includes("image") && !/safety|guard|embed|inkling/i.test(m.id));
     // الموديل الأساسي: أحدث Gemini Flash (سريع ودقيق ورخيص جداً، بيشتغل إذا الحساب فيه رصيد)
     const ver = id => parseFloat((id.match(/gemini-([\d.]+)/) || [])[1] || 0);
     paid = all.map(m => m.id).filter(id => /^google\/gemini-[\d.]+-flash(-preview)?$/.test(id)).sort((x, y) => ver(y) - ver(x)).slice(0, 1);
@@ -291,7 +291,7 @@ async function visionModels() {
   } catch (e) {}
   if (!paid.length) paid = ["google/gemini-2.5-flash"];
   list = [...paid, ...list];
-  try { localStorage.setItem("harira-models2", JSON.stringify({ t: Date.now(), list })); } catch (e) {}
+  try { localStorage.setItem("harira-models3", JSON.stringify({ t: Date.now(), list })); } catch (e) {}
   return list;
 }
 function parseJSON(t) {
@@ -303,7 +303,7 @@ async function askVision(dataUrl) {
   const models = (await visionModels()).slice(0, 4);
   let last = "الخدمة مشغولة هلق. جرب بعد شوي.";
   for (const model of models) {
-    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), model.endsWith(":free") ? 30000 : 60000);
+    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), model.endsWith(":free") ? 25000 : 30000);
     try {
       const r = await fetch(OR + "/chat/completions", {
         method: "POST", signal: ctl.signal,
