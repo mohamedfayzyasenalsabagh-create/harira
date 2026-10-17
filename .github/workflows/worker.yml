@@ -1,0 +1,41 @@
+# نشر خادم تحليل الصور على Cloudflare (يحتاج السرين CLOUDFLARE_API_TOKEN و CLOUDFLARE_ACCOUNT_ID)
+name: نشر خادم الصور
+on:
+  push:
+    branches: [main]
+    paths: ["worker/**", ".github/workflows/worker.yml"]
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: التحقق من الأسرار وحجز عنوان workers.dev
+        id: chk
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$ACC" ]; then echo "::warning::أسرار Cloudflare ناقصة"; echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          API="https://api.cloudflare.com/client/v4/accounts/$ACC/workers/subdomain"
+          SUB=$(curl -s -H "Authorization: Bearer $TOKEN" "$API" | jq -r '.result.subdomain // empty')
+          if [ -z "$SUB" ]; then
+            for name in harira-app harira-$((RANDOM)) harira-$((RANDOM)); do
+              SUB=$(curl -s -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "{\"subdomain\":\"$name\"}" "$API" | jq -r '.result.subdomain // empty')
+              [ -n "$SUB" ] && break
+            done
+          fi
+          echo "subdomain=$SUB"
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+          echo "url=https://harira-ai.$SUB.workers.dev" >> "$GITHUB_OUTPUT"
+      - uses: cloudflare/wrangler-action@v3
+        if: steps.chk.outputs.ok == 'true'
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+      - name: عنوان الخادم
+        if: steps.chk.outputs.ok == 'true'
+        run: |
+          echo "WORKER_URL=${{ steps.chk.outputs.url }}"
+          sleep 10; curl -s "${{ steps.chk.outputs.url }}" || true

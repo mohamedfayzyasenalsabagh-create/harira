@@ -1,0 +1,22 @@
+# نشر الموقع (اللي بيفتحه التطبيق) على فرع gh-pages عند أي تعديل بمجلد web
+name: نشر الموقع
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", ".github/workflows/site.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: رقم النسخة للكاش
+        run: sed -i "s/harira-v[0-9a-z]*/harira-${GITHUB_SHA::7}/" web/sw.js
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./web
+          publish_branch: gh-pages
+          force_orphan: true

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>حريره</title>
+<meta name="theme-color" content="#2F5D3A">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&family=Reem+Kufi:wght@600;700&display=swap">
+<style>
+/* تخطيط: تطبيق شاشة واحدة، ترويسة اليوم بالأعلى وشريط تبويب ثابت بالأسفل */
+:root{
+  --bg:#F4F5EF; --card:#FFFFFF; --ink:#1E2A20; --muted:#667063; --line:#E1E4D8;
+  --herb:#2F5D3A; --herb-soft:#E3EDDF; --tomato:#C9432A; --tomato-soft:#F8E1DA;
+  --saffron:#D99A1E; --lentil:#9A6B3F;
+  --display:"Reem Kufi","IBM Plex Sans Arabic",system-ui,sans-serif;
+  --body:"IBM Plex Sans Arabic","Noto Sans Arabic",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141A15; --card:#1D251E; --ink:#E9EEE6; --muted:#9DA899; --line:#2C362D;
+  --herb:#7FB98A; --herb-soft:#24362A; --tomato:#F07A5E; --tomato-soft:#3A2420;
+  --saffron:#E8B34A; --lentil:#C99A6B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141A15; --card:#1D251E; --ink:#E9EEE6; --muted:#9DA899; --line:#2C362D;
+  --herb:#7FB98A; --herb-soft:#24362A; --tomato:#F07A5E; --tomato-soft:#3A2420;
+  --saffron:#E8B34A; --lentil:#C99A6B; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--body);-webkit-tap-highlight-color:transparent}
+button,input,select{font:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums}
+main{max-width:560px;margin:0 auto;padding-block:16px 110px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-top:calc(16px + env(safe-area-inset-top,0px))}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance}
+h1{font-size:28px;color:var(--herb)}
+h2{font-size:18px}
+.muted{color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.btn{border:0;border-radius:14px;padding:12px 18px;background:var(--herb);color:var(--card);font-weight:700;cursor:pointer}
+.btn.ghost{background:var(--herb-soft);color:var(--herb)}
+.btn.warm{background:var(--tomato);color:#fff}
+.btn:disabled{opacity:.5}
+.btn:focus-visible,.tab:focus-visible,.food:focus-visible,.chip:focus-visible,.icon-btn:focus-visible{outline:3px solid var(--saffron);outline-offset:2px}
+.icon-btn{border:0;background:var(--herb-soft);color:var(--herb);width:38px;height:38px;border-radius:12px;font-size:18px;cursor:pointer;display:grid;place-items:center}
+input[type=text],input[type=number],input[type=search],select{width:100%;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:var(--card)}
+input:focus,select:focus{outline:2px solid var(--herb);border-color:transparent}
+
+/* ترويسة اليوم */
+.head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.datebar{display:flex;align-items:center;gap:8px}
+.datebar span{min-width:96px;text-align:center;font-weight:500}
+
+/* حلقة السعرات */
+.ring-wrap{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:center}
+.ring{position:relative;width:150px;height:150px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .mid{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.ring .big{font-family:var(--display);font-size:30px;line-height:1}
+.macros{display:flex;flex-direction:column;gap:10px}
+.macro .lbl{display:flex;justify-content:space-between;font-size:13px}
+.bar{height:8px;border-radius:8px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:8px}
+@media (max-width:380px){.ring-wrap{grid-template-columns:1fr;justify-items:center}.macros{width:100%}}
+
+/* قائمة المدخلات */
+.meal h2{font-size:15px;color:var(--lentil);margin-bottom:6px}
+.entry{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.entry:first-of-type{border-top:0}
+.entry .t{flex:1;min-width:0}
+.entry .t b{display:block;font-weight:500;overflow-wrap:anywhere}
+.entry .k{font-weight:700;color:var(--tomato)}
+.del{border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px 8px}
+.empty{text-align:center;padding:28px 12px}
+.empty .bowl{font-family:var(--display);font-size:40px;color:var(--saffron)}
+
+/* البحث والأكلات */
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;cursor:pointer;font-size:14px}
+.chip[aria-pressed="true"]{background:var(--herb);border-color:var(--herb);color:var(--card)}
+.foods{display:flex;flex-direction:column}
+.food{display:flex;align-items:center;gap:10px;padding:12px 4px;border:0;border-top:1px solid var(--line);background:none;text-align:right;cursor:pointer;width:100%}
+.food:first-child{border-top:0}
+.food .t{flex:1;min-width:0}
+.food .t small{display:block;color:var(--muted)}
+.food .k{color:var(--tomato);font-weight:700;white-space:nowrap}
+
+/* نافذة الكمية */
+.sheet-bg{position:fixed;inset:0;background:rgb(0 0 0 / .45);z-index:30;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--card);width:100%;max-width:560px;border-radius:22px 22px 0 0;
+  padding:20px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  max-height:90vh;overflow:auto}
+.qty{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
+.qty input{text-align:center;font-size:22px;font-weight:700}
+.quick{display:flex;flex-wrap:wrap;gap:8px}
+.result{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+.result div{background:var(--bg);border-radius:12px;padding:8px 4px}
+.result b{display:block;font-size:18px}
+.result .kc b{color:var(--tomato)}
+.result small{color:var(--muted);font-size:12px}
+
+/* الصورة */
+.drop{border:2px dashed var(--line);border-radius:18px;padding:22px;text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center}
+.preview{width:100%;max-height:260px;object-fit:cover;border-radius:14px}
+.ai-item{display:grid;grid-template-columns:auto 1fr 90px;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.ai-item:first-child{border-top:0}
+.ai-item input[type=number]{padding:8px;text-align:center}
+.ai-item input[type=checkbox]{width:20px;height:20px;accent-color:var(--herb)}
+.note{font-size:13px;background:var(--herb-soft);color:var(--ink);border-radius:12px;padding:10px 12px}
+.spinner{width:34px;height:34px;border-radius:50%;border:4px solid var(--herb-soft);border-top-color:var(--herb);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spinner{animation-duration:3s}}
+
+/* شريط التبويب */
+nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--card);border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(3,1fr);
+  padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+.tab{border:0;background:none;padding:8px 4px;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:13px;color:var(--muted)}
+.tab svg{width:24px;height:24px}
+.tab[aria-selected="true"]{color:var(--herb);background:var(--herb-soft);font-weight:700}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:12px;z-index:40;font-size:14px}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<nav class="tabs" role="tablist">
+  <button class="tab" role="tab" data-tab="today" aria-selected="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12a8 8 0 1 0 16 0"/><path d="M3 12h18"/><path d="M9 7c0-2 1-3 1-3M13 7c0-2 1-3 1-3"/></svg>
+    اليوم</button>
+  <button class="tab" role="tab" data-tab="add" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+    أضف أكلة</button>
+  <button class="tab" role="tab" data-tab="photo" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+    من صورة</button>
+</nav>
+<script src="foods.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
