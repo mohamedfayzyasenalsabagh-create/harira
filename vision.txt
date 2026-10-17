@@ -1,0 +1,9 @@
+/tmp/food.jpg: JPEG image data, Exif standard: [TIFF image data, little-endian, direntries=5, orientation=upper-left, xresolution=74, yresolution=82, resolutionunit=2], baseline, precision 8, 640x427, components 3
+free vision models: nvidia/nemotron-3.5-super-vl:free, dots-studio/dots-3-note-preview:free, thinkingmachines/inkling-small:free, thinkingmachines/inkling:free, nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free, google/gemma-4-26b-a4b-it:free, google/gemma-4-31b-it:free
+thinkingmachines/inkling-small:free | 403 | 0.1s | BAD | {"message":"thinkingmachines/inkling-small:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https:
+thinkingmachines/inkling:free | 403 | 0.2s | BAD | {"message":"thinkingmachines/inkling:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://open
+google/gemma-4-31b-it:free | 429 | 0.3s | BAD | {"message":"Provider returned error","code":429,"metadata":{"raw":"google/gemma-4-31b-it:free is temporarily rate-limited upstream. Please retry shortly, or add
+google/gemma-4-26b-a4b-it:free | 429 | 0.4s | BAD | {"message":"Provider returned error","code":429,"metadata":{"raw":"google/gemma-4-26b-a4b-it:free is temporarily rate-limited upstream. Please retry shortly, or
+nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free | 200 | 1.5s | BAD | {"message":"Upstream error from Nvidia: ResourceExhausted: Worker local total request limit reached (16/16)","code":502,"metadata":{"error_type":"provider_unava
+dots-studio/dots-3-note-preview:free | 200 | 20.3s | BAD | {"id":"gen-1792255339-nUeRHZO3Lo0NXEit25WO","object":"chat.completion","created":1792255339,"model":"dots-studio/dots-3-note-preview:free","provider":"AtlasClou
+nvidia/nemotron-3.5-super-vl:free | ERR TimeoutError | 90.0s
