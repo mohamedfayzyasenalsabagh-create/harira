@@ -120,15 +120,106 @@ input:focus,select:focus{outline:2px solid var(--herb);border-color:transparent}
 @media (prefers-reduced-motion:reduce){.spinner{animation-duration:3s}}
 
 /* المي */
-.cups{display:flex;gap:6px;flex:1;justify-content:center}
-.cups i{width:18px;height:26px;border-radius:4px 4px 8px 8px;border:2px solid var(--water);display:block}
+.cups{display:flex;flex-wrap:wrap;gap:5px;flex:1;justify-content:center;min-width:0;padding:0 6px}
+.cups i{width:16px;height:24px;border-radius:4px 4px 8px 8px;border:2px solid var(--water);display:block}
 .cups i.on{background:var(--water)}
+
+/* لوحة اليوم */
+.dash{display:grid;grid-template-columns:140px 1fr;gap:14px 16px;align-items:center}
+.dash .ring{width:140px;height:140px}
+.dash .ring svg{transform:none}
+.dash-stats{display:grid;grid-template-columns:1fr;gap:8px}
+.dash-stats div{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px dashed var(--line);padding-bottom:4px}
+.dash-stats b{font-size:18px}
+.dash .macros{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.dash .macro .lbl{flex-direction:column;gap:0}
+@media (max-width:360px){.dash{grid-template-columns:1fr;justify-items:center}.dash-stats{width:100%}.dash .macros{grid-template-columns:1fr;width:100%}}
+.streak{font-size:15px;background:var(--tomato-soft);color:var(--tomato);border-radius:999px;padding:2px 10px;vertical-align:middle}
+.quick-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.quick-actions button,.food-actions button,.food-actions label{border:1px solid var(--line);background:var(--card);border-radius:16px;padding:12px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;cursor:pointer;color:var(--ink);text-align:center}
+.quick-actions span,.food-actions span{font-size:22px;line-height:1}
+.food-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.food-actions b{font-size:14px}.food-actions small{color:var(--muted)}
+.meal-row{padding:10px 0;border-top:1px solid var(--line)}
+.meal-row:first-of-type{border-top:0}
+.icon-btn.sm{width:30px;height:30px;font-size:16px;border-radius:10px}
+.workout-today{display:flex;flex-direction:column;gap:8px;background:linear-gradient(135deg,var(--herb-soft),var(--card))}
+.pill{display:inline-block;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;background:var(--herb-soft);color:var(--herb)}
+/* شبكة الأرقام */
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.stat-grid.three{grid-template-columns:repeat(3,1fr)}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.card .stat{background:var(--bg);border:0}
+.stat small{color:var(--muted);font-size:12px}
+.stat b{font-size:20px;font-family:var(--display)}
+.stat b i,.big-num i{font-style:normal;font-size:12px;color:var(--muted);font-family:var(--body);margin-inline-start:3px}
+.big-num{font-size:34px;font-weight:700;font-family:var(--display);line-height:1.1}
+.plan-hero{display:flex;flex-direction:column;align-items:center;background:var(--herb);color:var(--card);border-radius:18px;padding:16px}
+.plan-hero b{font-size:44px;font-family:var(--display);line-height:1.1}
+.plan-hero .muted{color:inherit;opacity:.8}
+.prog-bar{height:10px;border-radius:10px;background:var(--line);overflow:hidden}
+.prog-bar i{display:block;height:100%;background:var(--herb);border-radius:10px;transition:width .4s}
+.bmi-bar{position:relative;height:10px;border-radius:10px;margin:8px 0 2px;background:linear-gradient(90deg,var(--water) 0 14%,var(--herb) 14% 40%,var(--saffron) 40% 60%,var(--tomato) 60%)}
+[dir=rtl] .bmi-bar{background:linear-gradient(-90deg,var(--water) 0 14%,var(--herb) 14% 40%,var(--saffron) 40% 60%,var(--tomato) 60%)}
+.bmi-bar i{position:absolute;top:-4px;width:6px;height:18px;border-radius:3px;background:var(--ink);transform:translateX(-50%)}
+[dir=rtl] .bmi-bar i{transform:translateX(50%)}
+/* الترحيب */
+.wizard{display:flex;flex-direction:column;gap:18px;min-height:calc(100vh - 60px)}
+.wiz-top{display:grid;grid-template-columns:40px 1fr auto;gap:10px;align-items:center}
+.wiz-bar{height:8px;border-radius:8px;background:var(--line);overflow:hidden}.wiz-bar i{display:block;height:100%;background:var(--herb);transition:width .3s}
+.wiz-title{font-size:26px;color:var(--ink)}
+.wiz-next{margin-top:auto;padding:16px}
+.big-input{display:flex;align-items:baseline;justify-content:center;gap:10px;border-bottom:3px solid var(--herb);padding:8px 0}
+.big-input input{border:0!important;background:none!important;font-size:48px!important;font-weight:700;text-align:center;width:180px!important;padding:0!important;font-family:var(--display)}
+.big-input input:focus{outline:none!important}
+.big-input span{font-size:18px;color:var(--muted)}
+.choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.choice-list{display:flex;flex-direction:column;gap:10px}
+.choice{border:2px solid var(--line);background:var(--card);border-radius:16px;padding:16px;cursor:pointer;color:var(--ink);font:inherit;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:16px;font-weight:700}
+.choice.row-choice{align-items:flex-start;text-align:start}
+.choice small{font-weight:400;color:var(--muted);font-size:13px}
+.choice.on{border-color:var(--herb);background:var(--herb-soft)}
+.ci{font-size:40px;line-height:1}
+/* أنا */
+.profile-card{display:flex;align-items:center;gap:12px}
+.avatar{width:56px;height:56px;border-radius:50%;background:var(--herb);color:var(--card);display:grid;place-items:center;font-size:24px;font-weight:700;flex:none;font-family:var(--display)}
+.list{display:flex;flex-direction:column}
+.list-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 2px;border:0;border-top:1px solid var(--line);background:none;font:inherit;color:inherit;cursor:pointer;text-align:start;width:100%}
+.list h2+.list-row{border-top:0}
+/* التمارين */
+.hero-card{display:flex;flex-direction:column;gap:10px;background:linear-gradient(135deg,var(--herb-soft),var(--card))}
+.prog-list{display:flex;flex-direction:column;gap:8px}
+.prog-card{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--card);border-radius:16px;padding:12px;cursor:pointer;font:inherit;color:inherit;text-align:start;width:100%}
+.prog-card.on{border-color:var(--herb);box-shadow:inset 0 0 0 1px var(--herb)}
+.prog-card .t{flex:1;min-width:0}.prog-card small{display:block;color:var(--muted)}
+.prog-ic{width:44px;height:44px;border-radius:12px;background:var(--herb-soft);display:grid;place-items:center;font-size:22px;flex:none}
+.prog-ic.big{width:56px;height:56px;font-size:28px}
+.player{position:fixed;inset:0;z-index:25;background:var(--bg);display:flex;flex-direction:column;gap:14px;
+  padding:calc(16px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.player.resting{background:var(--herb-soft)}
+.pl-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center}
+.pl-label{color:var(--lentil);font-weight:700}
+.pl-name{font-size:32px}
+.pl-ring{position:relative;width:200px;height:200px}.pl-ring svg{width:100%;height:100%}
+.pl-ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:52px;font-family:var(--display)}
+.pl-reps{font-size:84px;font-weight:700;font-family:var(--display);color:var(--herb);line-height:1}
+.pl-desc{max-width:420px;line-height:1.8}
+/* التقدّم */
+.meas-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.meas-grid div{display:flex;flex-direction:column;background:var(--bg);border-radius:12px;padding:8px 10px}
+.meas-grid b{font-size:18px}.meas-grid b i{font-style:normal;font-size:11px;color:var(--muted)}
+.meas-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.meas-form label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.badge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.badge{display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;padding:10px 6px;border-radius:14px;background:var(--bg);opacity:.45;filter:grayscale(1)}
+.badge.on{opacity:1;filter:none;background:var(--herb-soft)}
+.badge span{font-size:26px}.badge b{font-size:12px}.badge small{font-size:10px;color:var(--muted)}
 
 /* شريط التبويب */
 nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--card);border-top:1px solid var(--line);
-  display:grid;grid-template-columns:repeat(3,1fr);
+  display:grid;grid-template-columns:repeat(5,1fr);
   padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
-.tab{border:0;background:none;padding:8px 4px;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:13px;color:var(--muted)}
+.tab{border:0;background:none;padding:7px 2px;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:var(--muted);min-width:0;white-space:nowrap}
 .tab svg{width:24px;height:24px}
 .tab[aria-selected="true"]{color:var(--herb);background:var(--herb-soft);font-weight:700}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:12px;z-index:40;font-size:14px}
@@ -137,20 +228,20 @@ nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--card
 <body>
 <main id="app"></main>
 <nav class="tabs" role="tablist">
-  <button class="tab" role="tab" data-tab="today" aria-selected="true">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12a8 8 0 1 0 16 0"/><path d="M3 12h18"/><path d="M9 7c0-2 1-3 1-3M13 7c0-2 1-3 1-3"/></svg>
-    اليوم</button>
-  <button class="tab" role="tab" data-tab="add" aria-selected="false">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
-    أضف أكلة</button>
-  <button class="tab" role="tab" data-tab="photo" aria-selected="false">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
-    من صورة</button>
+  <button class="tab" role="tab" data-tab="today" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>اليوم</button>
+  <button class="tab" role="tab" data-tab="add" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12a8 8 0 1 0 16 0"/><path d="M3 12h18"/><path d="M9 7c0-2 1-3 1-3M13 7c0-2 1-3 1-3"/></svg>الأكل</button>
+  <button class="tab" role="tab" data-tab="workouts" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg>التمارين</button>
+  <button class="tab" role="tab" data-tab="progress" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M5 15l4-4 4 3 6-7"/></svg>التقدّم</button>
+  <button class="tab" role="tab" data-tab="me" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>أنا</button>
 </nav>
 <script src="i18n.js"></script>
+<script src="i18n-more.js"></script>
 <script src="foods.js"></script>
 <script src="tips.js"></script>
 <script src="sub.js"></script>
+<script src="profile.js"></script>
+<script src="workouts.js"></script>
+<script src="progress.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

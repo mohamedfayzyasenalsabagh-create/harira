@@ -79,6 +79,7 @@ const EN_PARTS = Object.entries({
 
 const AR_DIGITS = /[٠-٩٬٫]/g;
 const toLatin = s => s.replace(AR_DIGITS, c => c === "٬" ? "," : c === "٫" ? "." : String("٠١٢٣٤٥٦٧٨٩".indexOf(c)));
+let EN_WORDS_SORTED = null;
 function trEN(text) {
   const t = text.trim();
   if (!t) return text;
@@ -87,8 +88,9 @@ function trEN(text) {
     out = t;
     for (const [k, v] of Object.entries(EN_FOODS)) if (out.includes(k)) out = out.split(k).join(v);
     for (const [k, v] of EN_PARTS) if (out.includes(k)) out = out.split(k).join(v);
-    for (const [k, v] of Object.entries(EN_WORDS)) if (k.length > 2 && out.includes(k)) out = out.split(k).join(v);
-    out = out.replace(/٪/g, "%").replace(/([\d٠-٩])\s*غ(?![\u0600-\u06FF])/g, "$1 g").replace(/^غ$/, "g");
+    if (!EN_WORDS_SORTED) EN_WORDS_SORTED = Object.entries(EN_WORDS).filter(([k]) => k.length > 2).sort((a, b) => b[0].length - a[0].length);
+    for (const [k, v] of EN_WORDS_SORTED) if (out.includes(k)) out = out.split(k).join(v);
+    out = out.replace(/،/g, ",").replace(/([\d٠-٩])\s*سم/g, "$1 cm").replace(/(^|\s)(فص|مت|سم)(?=$|\s)/g, (m, a, w) => a + ({ "فص": "clove", "مت": "", "سم": "cm" })[w]).replace(/٪/g, "%").replace(/([\d٠-٩])\s*غ(?![\u0600-\u06FF])/g, "$1 g").replace(/^غ$/, "g");
   }
   return text.replace(t, toLatin(out));
 }

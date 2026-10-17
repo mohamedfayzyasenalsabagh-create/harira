@@ -1,6 +1,6 @@
 // يخلي التطبيق يشتغل بدون إنترنت: يعرض آخر نسخة محفوظة ويحدّثها بالخلفية
 const CACHE = "harira-v1";
-const CORE = ["./", "index.html", "i18n.js", "app.js", "foods.js", "tips.js", "sub.js", "pay-qr.jpg", "manifest.json", "icon-192.png"];
+const CORE = ["./", "index.html", "i18n.js", "i18n-more.js", "app.js", "foods.js", "tips.js", "sub.js", "profile.js", "workouts.js", "progress.js", "pay-qr.jpg", "manifest.json", "icon-192.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE))); self.skipWaiting(); });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && !k.startsWith("harira-ml")).map(k => caches.delete(k)))).then(() => self.clients.claim()));

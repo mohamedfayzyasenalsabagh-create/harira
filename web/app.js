@@ -84,77 +84,74 @@ function dayLabel() {
 function renderToday() {
   const list = entries();
   const tot = list.reduce((a, e) => ({ k: a.k + e.k, p: a.p + e.p, cb: a.cb + e.cb, f: a.f + e.f }), { k: 0, p: 0, cb: 0, f: 0 });
-  const burned = (S.ex && S.ex[key(day)] || []).reduce((a, e) => a + e.k, 0);
-  const goal = (S.goal || 2000) + burned;
-  const pct = Math.min(tot.k / goal, 1);
-  const over = tot.k > goal;
+  const exs = (S.ex && S.ex[key(day)]) || [];
+  const burned = exs.reduce((a, e) => a + e.k, 0);
+  const base = S.goal || 2000, goal = base + burned;
+  const pct = Math.min(tot.k / goal, 1), over = tot.k > goal, left = goal - tot.k;
   const C = 2 * Math.PI * 62;
-  const left = goal - tot.k;
-  // أهداف تقريبية للعناصر: 25% بروتين، 50% كربوهيدرات، 25% دهون من هدف السعرات
-  const tg = { p: goal * .25 / 4, cb: goal * .5 / 4, f: goal * .25 / 9 };
-  const macro = (name, v, t, color) => `<div class="macro"><div class="lbl"><span>${name}</span><span class="num muted">${fmt(v)} / ${fmt(t)} غ</span></div>
+  const tg = S.macros || { p: base * .25 / 4, cb: base * .5 / 4, f: base * .25 / 9 };
+  const macro = (name, v, t, color) => `<div class="macro"><div class="lbl"><span>${name}</span><span class="num muted">${fmt(v)}/${fmt(t)} غ</span></div>
     <div class="bar"><i style="width:${Math.min(v / t, 1) * 100}%;background:${color}"></i></div></div>`;
-
   const byMeal = MEALS.map(m => {
     const items = list.map((e, i) => ({ e, i })).filter(x => (x.e.meal || "سناك") === m);
-    if (!items.length) return "";
     const sum = items.reduce((a, x) => a + x.e.k, 0);
-    return `<div class="card meal"><div class="row between"><h2>${m}</h2><span class="num muted">${fmt(sum)} سعرة</span></div>
-      ${items.map(({ e, i }) => `<div class="entry"><div class="t"><b>${esc(e.n)}</b><small class="muted num">${fmt(e.g)} غرام${e.src ? " · من صورة" : ""}</small></div>
+    return `<div class="meal-row"><div class="row between"><b>${m}</b><span class="row" style="gap:8px"><span class="num muted">${items.length ? fmt(sum) + " سعرة" : ""}</span><button class="icon-btn sm" data-addmeal="${m}" aria-label="أضف لـ${m}">+</button></span></div>
+      ${items.map(({ e, i }) => `<div class="entry"><div class="t"><b>${esc(e.n)}</b><small class="muted num">${fmt(e.g)} غرام${e.src ? " · 📸" : ""}</small></div>
         <span class="k num">${fmt(e.k)}</span><button class="del" data-del="${i}" aria-label="احذف ${esc(e.n)}">×</button></div>`).join("")}</div>`;
   }).join("");
-
+  const ap = typeof activeProgram === "function" ? activeProgram() : null;
+  const isToday = key(day) === key(new Date());
+  const name = (prof().name || "").split(" ")[0];
+  const h = new Date().getHours(), hello = h < 12 ? "صباح الخير" : h < 18 ? "نهارك سعيد" : "مسا الخير";
   app.innerHTML = `
   ${updateBanner()}
-  <div class="head"><div class="row" style="gap:8px"><h1>حريره</h1><button class="chip" id="lang" aria-label="اللغة">${LANG === "en" ? "ع" : "EN"}</button>
-    <button class="chip" id="subchip" style="${subState.active ? "" : "background:var(--saffron);border-color:var(--saffron);color:#1E2A20"}">${subBadge()}</button>
-    ${isAdmin() ? `<a class="chip" href="admin.html" style="text-decoration:none;color:inherit;background:var(--herb);border-color:var(--herb);color:var(--card)">👑 لوحة الإدارة</a>` : ""}
-    <button class="icon-btn" id="bell" aria-label="التذكيرات" style="width:34px;height:34px">🔔</button></div>
-    <div class="datebar"><button class="icon-btn" id="prev" aria-label="اليوم السابق">${LANG === "en" ? "‹" : "›"}</button><span>${dayLabel()}</span><button class="icon-btn" id="next" aria-label="اليوم التالي" ${key(day) === key(new Date()) ? "disabled style=\"opacity:.35\"" : ""}>${LANG === "en" ? "›" : "‹"}</button></div></div>
+  <div class="head"><div style="min-width:0"><small class="muted">${hello}${name ? "،" : ""}</small><h1 style="font-size:24px">${name ? esc(name) : "حريره"} ${streak() >= 2 ? `<span class="streak num">🔥${fmt(streak())}</span>` : ""}</h1></div>
+    <div class="row" style="gap:6px"><button class="chip" id="subchip" style="${subState.active || isAdmin() ? "" : "background:var(--saffron);border-color:var(--saffron);color:#1E2A20"}">${subBadge()}</button>
+    <button class="icon-btn" id="bell" aria-label="التذكيرات">🔔</button></div></div>
+  <div class="datebar" style="justify-content:space-between;margin-bottom:12px"><button class="icon-btn" id="prev" aria-label="اليوم السابق">${LANG === "en" ? "‹" : "›"}</button><b>${dayLabel()}</b><button class="icon-btn" id="next" aria-label="اليوم التالي" ${isToday ? "disabled style=\"opacity:.35\"" : ""}>${LANG === "en" ? "›" : "‹"}</button></div>
   <div class="stack">
-    <div class="card ring-wrap">
+    <div class="card dash">
       <div class="ring">
-        <svg viewBox="0 0 140 140"><circle cx="70" cy="70" r="62" fill="none" stroke="var(--line)" stroke-width="12"/>
-          <circle cx="70" cy="70" r="62" fill="none" stroke="${over ? "var(--tomato)" : "var(--herb)"}" stroke-width="12" stroke-linecap="round"
-            stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}"/></svg>
-        <div class="mid"><span class="big num">${fmt(tot.k)}</span><small class="muted">سعرة</small></div>
+        <svg viewBox="0 0 140 140"><circle cx="70" cy="70" r="62" fill="none" stroke="var(--line)" stroke-width="11"/>
+          <circle cx="70" cy="70" r="62" fill="none" stroke="${over ? "var(--tomato)" : "var(--herb)"}" stroke-width="11" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}" transform="rotate(-90 70 70)"/></svg>
+        <div class="mid"><span class="big num">${fmt(Math.abs(left))}</span><small class="muted">${over ? "زيادة" : "باقي"}</small></div>
       </div>
-      <div class="macros">
-        <div class="row between"><span>${over ? "زيادة" : "باقي"} <b class="num" style="color:${over ? "var(--tomato)" : "var(--herb)"}">${fmt(Math.abs(left))}</b></span>
-          <button class="chip" id="goal">الهدف: <span class="num">${fmt(S.goal || 2000)}</span></button></div>
-        ${burned ? `<small class="muted">🏃 حرقت <b class="num">${fmt(burned)}</b> سعرة رياضة، انضافت لميزانيتك</small>` : ""}
-        ${macro("بروتين", tot.p, tg.p, "var(--herb)")}
-        ${macro("كربوهيدرات", tot.cb, tg.cb, "var(--saffron)")}
-        ${macro("دهون", tot.f, tg.f, "var(--lentil)")}
+      <div class="dash-stats">
+        <div><small class="muted">الهدف</small><b class="num">${fmt(base)}</b></div>
+        <div><small class="muted">أكلت</small><b class="num">${fmt(tot.k)}</b></div>
+        <div><small class="muted">حرقت</small><b class="num" style="color:var(--herb)">${fmt(burned)}</b></div>
       </div>
+      <div class="macros">${macro("بروتين", tot.p, tg.p, "var(--herb)")}${macro("كربوهيدرات", tot.cb, tg.cb, "var(--saffron)")}${macro("دهون", tot.f, tg.f, "var(--lentil)")}</div>
     </div>
-    ${byMeal || `<div class="card empty"><div class="bowl">ح</div><p>ما سجلت شي ${dayLabel() === "اليوم" ? "اليوم" : "بهاليوم"} لسا.</p>
-      <div class="row" style="justify-content:center;flex-wrap:wrap"><button class="btn" data-go="add">اختار أكلة</button><button class="btn ghost" data-go="photo">صوّر صحنك</button></div></div>`}
-    ${tipCard()}
+    <div class="quick-actions">
+      <button data-go="photo"><span>📸</span>صوّر صحنك</button>
+      <button data-go="add"><span>🔍</span>أضف أكلة</button>
+      <button id="qa-w"><span>⚖️</span>سجّل وزن</button>
+      <button data-go="workouts"><span>🏋️</span>تمرّن</button>
+    </div>
+    ${ap && isToday ? `<div class="card workout-today"><div class="row between"><span class="pill">${ap.icon} تمرين اليوم</span><small class="muted">${fmt(workoutMinutes(ap, nextDayIndex(ap)))} دقيقة · ≈ ${fmt(workoutKcal(ap, nextDayIndex(ap)))} سعرة</small></div>
+      <b>${ap.name}</b><button class="btn" id="td-start">▶ ابدأ</button></div>` : ""}
+    <div class="card"><div class="row between" style="margin-bottom:4px"><h2>وجباتي</h2><span class="muted num" style="font-size:13px">${fmt(list.length)} أصناف</span></div>${byMeal}</div>
     ${waterCard()}
-    ${exerciseCard()}
-    ${weekCard()}
-    ${isPremium() ? weightCard() : ""}
-    ${supportBox()}
+    ${exs.length ? exerciseCard() : ""}
+    ${tipCard()}
   </div>`;
-
   $("#prev").onclick = () => { day.setDate(day.getDate() - 1); render(); };
-  $("#next").onclick = () => { if (key(day) !== key(new Date())) { day.setDate(day.getDate() + 1); render(); } };
-  $("#goal").onclick = goalSheet;
-  $("#lang").onclick = () => setLang(LANG === "en" ? "ar" : "en");
+  $("#next").onclick = () => { if (!isToday) { day.setDate(day.getDate() + 1); render(); } };
   $("#subchip").onclick = () => subSheet();
   $("#bell").onclick = () => requirePremium("التذكيرات") && remindersSheet();
+  $("#qa-w").onclick = weightSheet;
+  const tds = $("#td-start"); if (tds) tds.onclick = () => startPlayer(ap, nextDayIndex(ap));
   const xa = $("#ex-add"); if (xa) xa.onclick = () => requirePremium("الرياضة") && exerciseSheet();
   app.querySelectorAll("[data-exdel]").forEach(b => b.onclick = () => { const l = S.ex[key(day)]; l.splice(+b.dataset.exdel, 1); save(); render(); });
   const ub = $("#upd-x"); if (ub) ub.onclick = () => { try { sessionStorage.setItem("harira-upd-x", "1"); } catch (e) {} render(); };
   $("#w-plus").onclick = () => { const k = key(day); S.water = S.water || {}; S.water[k] = Math.min(20, (S.water[k] || 0) + 1); save(); render(); };
   $("#w-minus").onclick = () => { const k = key(day); S.water = S.water || {}; S.water[k] = Math.max(0, (S.water[k] || 0) - 1); save(); render(); };
-  const wa = $("#wt-add"); if (wa) wa.onclick = weightSheet;
-  app.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
-    const l = entries(); l.splice(+b.dataset.del, 1); save(); render();
-  });
+  app.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { const l = entries(); l.splice(+b.dataset.del, 1); save(); render(); });
+  app.querySelectorAll("[data-addmeal]").forEach(b => b.onclick = () => { mealPick = b.dataset.addmeal; go("add"); });
   app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => go(b.dataset.go));
 }
+let mealPick = null;
 
 // أعمدة آخر 7 أيام
 function weekCard() {
@@ -407,11 +404,12 @@ function remindersSheet() {
 function latestWeight() { const w = S.weights || {}; const k = Object.keys(w).sort().pop(); return k ? w[k] : null; }
 function logWeight(v) { (S.weights = S.weights || {})[key(new Date())] = v; save(); }
 function waterCard() {
-  const k = key(day), n = (S.water || {})[k] || 0, goal = 8;
-  return `<div class="card"><div class="row between"><h2>المي</h2><span class="muted num">${fmt(n)} / ${fmt(goal)} كاسات</span></div>
+  const k = key(day), n = (S.water || {})[k] || 0, goal = S.waterMl ? Math.max(6, Math.round(S.waterMl / 250)) : 8;
+  return `<div class="card"><div class="row between"><h2>💧 المي</h2><span class="muted num">${fmt1(n * 0.25)} / ${fmt1(goal * 0.25)} لتر</span></div>
     <div class="row between" style="margin-top:10px"><button class="icon-btn" id="w-minus" aria-label="أنقص كاسة">−</button>
       <div class="cups" aria-hidden="true">${Array.from({ length: goal }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</div>
-      <button class="icon-btn" id="w-plus" aria-label="زيد كاسة">+</button></div></div>`;
+      <button class="icon-btn" id="w-plus" aria-label="زيد كاسة">+</button></div>
+    <small class="muted">${n >= goal ? "وصلت لهدفك اليوم 👏" : "كل كاسة ٢٥٠ مل · باقي " + fmt(goal - n) + " كاسات"}</small></div>`;
 }
 function weightCard() {
   const w = S.weights || {}, ks = Object.keys(w).sort().slice(-30);
@@ -432,7 +430,7 @@ function weightSheet() {
     $("#wt-save", el).onclick = () => {
       const v = r1(+$("#wt", el).value);
       if (!(v >= 30 && v <= 300)) return toast("اكتب وزن صحيح بالكيلو");
-      logWeight(v); if (S.profile) S.profile.w = v; save(); closeSheet(); render();
+      logWeight(v); if (typeof applyPlan === "function") applyPlan(); save(); closeSheet(); render(); toast("انسجل الوزن" + (S.profile && S.profile.done ? "، وانحدّثت خطتك" : ""));
     };
   });
 }
@@ -507,7 +505,8 @@ const norm = s => s.replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/
 function renderAdd() {
   const cats = ["الكل", ...new Set(FOODS.map(f => f.c))];
   app.innerHTML = `
-  <div class="head"><h1>أضف أكلة</h1><span class="muted">${dayLabel()}</span></div>
+  <div class="head"><h1>الأكل</h1><span class="muted">${dayLabel()}${mealPick ? " · " + mealPick : ""}</span></div>
+  ${learnCtx ? "" : `<div class="food-actions"><button data-go="photo"><span>📸</span><b>حلّل صحنك</b><small>بالصورة</small></button><label for="bc-in"><span>▦</span><b>باركود</b><small>للمنتجات</small></label></div>`}
   <div class="stack">
     ${learnCtx ? `<div class="note row between" style="gap:8px"><span>اختار الأكلة اللي بالصورة، وبتعلّمها للمرة الجاية.</span><button class="chip" id="learn-x">إلغاء</button></div>` : ""}
     <div class="row"><input id="q" type="search" placeholder="دوّر: رز، شاورما، تفاح…" value="${esc(query)}" aria-label="ابحث عن أكلة">
@@ -521,6 +520,7 @@ function renderAdd() {
     <p class="muted" style="font-size:12px;margin:0">القيم تقريبية لكل ١٠٠ غرام، وبتختلف حسب طريقة الطبخ والمكونات.</p>
   </div>`;
   const lx = $("#learn-x"); if (lx) lx.onclick = () => { learnCtx = null; renderAdd(); };
+  app.querySelectorAll(".food-actions [data-go]").forEach(b => b.onclick = () => go(b.dataset.go));
   $("#new-food").onclick = () => customSheet();
   $("#bc-in").onclick = e => { if (!requirePremium("مسح الباركود")) e.preventDefault(); };
   $("#bc-in").onchange = e => e.target.files[0] && scanBarcode(e.target.files[0]);
@@ -575,7 +575,7 @@ function customSheet(barcode) {
 
 function qtySheet(f, src, g0) {
   let g = g0 || f.ug;
-  let meal = guessMeal();
+  let meal = mealPick || guessMeal();
   sheet(`<div class="row between"><h2>${esc(f.n)}</h2><button class="icon-btn" id="fav" aria-label="مفضلة" aria-pressed="${isFav(f.n)}" style="color:${isFav(f.n) ? "var(--saffron)" : "var(--muted)"}">${isFav(f.n) ? "★" : "☆"}</button></div>
     <span class="muted num" style="margin-top:-8px">${fmt(f.k)} سعرة/١٠٠غ</span>
     <label class="muted" for="gr">الكمية بالغرام</label>
@@ -609,6 +609,7 @@ function qtySheet(f, src, g0) {
       if (learnCtx) { learn(learnCtx.emb, [{ f, g }]); learnCtx = null; }
       addEntry({ n: f.n, g, ...v, meal: $("#meal", el).value, ...(src || fromPhoto ? { src: "photo" } : {}) });
       closeSheet(); toast(`انضافت: ${f.n} (${fmt(v.k)} سعرة)`);
+      mealPick = null;
       if (src === "photo" || fromPhoto) { photo = null; go("today"); }
     };
     upd();
@@ -669,7 +670,8 @@ function renderPhoto() {
     body = `<div class="card stack"><img class="preview" src="${p.url}" alt="صورة الأكلة">${inner}
       <button class="btn ghost" id="again">صورة جديدة</button></div>`;
   }
-  app.innerHTML = `<div class="head"><h1>من صورة</h1><span class="muted">${dayLabel()}</span></div><div class="stack">${body}</div>`;
+  app.innerHTML = `<div class="head"><div class="row" style="gap:8px"><button class="icon-btn" id="ph-back" aria-label="رجوع">${LANG === "en" ? "‹" : "›"}</button><h1>تحليل الصحن</h1></div><span class="muted">${dayLabel()}</span></div><div class="stack">${body}</div>`;
+  $("#ph-back").onclick = () => go("add");
 
   ["cam", "gal"].forEach(id => { const el = $("#" + id); if (el) { el.onclick = e => { if (!requirePremium("تحليل الصحن بالصورة")) e.preventDefault(); }; el.onchange = () => el.files[0] && analyze(el.files[0]); } });
   const again = $("#again"); if (again) again.onclick = () => { photo = null; renderPhoto(); };
@@ -897,18 +899,25 @@ function sheet(html, bind) {
   bind($(".sheet", sheetEl));
   history.pushState({ sheet: 1 }, "");
 }
+let ignorePop = false;
 function closeSheet(fromPop) {
   if (!sheetEl) return;
   sheetEl.remove(); sheetEl = null;
-  if (!fromPop && history.state && history.state.sheet) history.back();
+  if (!fromPop && history.state && history.state.sheet) { ignorePop = true; history.back(); }
 }
-window.addEventListener("popstate", () => { if (sheetEl) closeSheet(true); else if (tab !== "today") go("today", true); });
+window.addEventListener("popstate", () => {
+  if (ignorePop) { ignorePop = false; return; }
+  if (sheetEl) closeSheet(true);
+  else if (typeof player !== "undefined" && player) { history.pushState({ pl: 1 }, ""); }
+  else if (tab !== "today") go("today", true);
+});
 
 function go(t, fromPop) {
   if (t === "today") learnCtx = null;
   if (t !== tab && !fromPop && t !== "today") history.pushState({ tab: t }, "");
   tab = t;
-  document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t));
+  const hl = t === "photo" ? "add" : t;
+  document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === hl));
   render(); scrollTo(0, 0);
 }
 document.querySelectorAll(".tab").forEach(b => b.onclick = () => { learnCtx = null; go(b.dataset.tab); });
@@ -922,11 +931,16 @@ window.hariraReceivePhoto = async dataUrl => {
   } catch (e) { toast("ما قدرت افتح الصورة، جرب مرة تانية"); }
 };
 function render() {
-  if (!getAccount()) { document.querySelector("nav.tabs").hidden = true; return renderLogin(); }
+  const nav = document.querySelector("nav.tabs");
+  if (typeof player !== "undefined" && player) return;
+  if (!getAccount()) { nav.hidden = true; return renderLogin(); }
+  if (wiz || !prof().done) { if (!wiz) { startWizard(); return; } return renderWizard(); }
   const locked = !isPremium();
-  document.querySelector("nav.tabs").hidden = locked;
+  nav.hidden = locked;
   if (locked) return renderLocked();
-  ({ today: renderToday, add: renderAdd, photo: renderPhoto })[tab]();
+  const hl = tab === "photo" ? "add" : tab;
+  document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === hl));
+  ({ today: renderToday, add: renderAdd, photo: renderPhoto, workouts: renderWorkouts, progress: renderProgress, me: renderMe })[tab]();
 }
 // تسجيل الدخول: نفس الشاشة للحساب الجديد والقديم (الحساب = الإيميل + كلمة السر)
 function renderLogin() {
@@ -973,6 +987,7 @@ function renderLocked() {
   $("#lock-sub").onclick = () => subSheet();
   $("#lock-out").onclick = () => { logout(); subState.active = false; refreshSub().then(render); };
 }
+if (typeof applyPlan === "function") applyPlan();
 render();
 refreshSub().then(() => { render(); scheduleReminders(); const r = getReq(); if (r && r.status === "pending") { startPolling(); resendIfStale(); } else pollActivation().then(c => { if (c) refreshSub().then(render); }); });
 
