@@ -304,7 +304,7 @@ async function askVision(dataUrl) {
       const r = await fetch(OR + "/chat/completions", {
         method: "POST", signal: ctl.signal,
         headers: { "Authorization": "Bearer " + ORK, "Content-Type": "application/json", "HTTP-Referer": "https://mohamedfayzyasenalsabagh-create.github.io/harira/", "X-Title": "Harira" },
-        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 1000,
+        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 4000, reasoning: { effort: "low", exclude: true },
           messages: [{ role: "user", content: [{ type: "text", text: AI_PROMPT }, { type: "image_url", image_url: { url: dataUrl } }] }] })
       });
       const j = await r.json().catch(() => ({}));
@@ -319,7 +319,7 @@ async function askVision(dataUrl) {
       if (!r.ok) continue;
       const text = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
       return parseJSON(Array.isArray(text) ? text.map(x => x.text || "").join("") : text);
-    } catch (e) { if (e.name === "AbortError") last = "التحليل طوّل كتير. جرب مرة تانية."; }
+    } catch (e) { if (globalThis.HARIRA_DEBUG) console.log(model, "ERR", e.name, e.message); if (e.name === "AbortError") last = "التحليل طوّل كتير. جرب مرة تانية."; }
     finally { clearTimeout(timer); }
   }
   throw new Error(last);
