@@ -281,9 +281,7 @@ function subSheet(reason) {
   sheet(`<h2>${subState.active ? "اشتراكك" : "اشترك بحريره"}</h2>${body}
     ${supportBox()}
     <div class="row between"><small class="muted" dir="ltr">${esc((getAccount() || {}).email || "")}</small><button class="chip" id="logout">تسجيل خروج</button></div>
-    <details><summary class="muted" style="cursor:pointer">عندك كود تفعيل؟ / كود حسابك</summary>
-      <div class="stack" style="margin-top:8px"><small class="muted">كود حسابك: <code style="direction:ltr">${shortCode(id)}</code> <code style="direction:ltr;font-size:11px;display:block">${id}</code></small>
-      <input id="s-code" type="text" dir="ltr" placeholder="الصق كود التفعيل هون"><button class="btn ghost" id="s-apply">فعّل</button></div></details>`, el => {
+`, el => {
     const cw = $("#copy-w", el); if (cw) cw.onclick = () => navigator.clipboard.writeText(SUB.wallet).then(() => toast("انسخ"), () => toast(SUB.wallet));
     let file = null;
     const rc = $("#s-rc", el); if (rc) rc.onchange = () => { file = rc.files[0]; if (file) { const pv = $("#s-prev", el); pv.src = URL.createObjectURL(file); pv.style.display = "block"; $("#s-rc-l", el).textContent = "✓ تغيير الصورة"; } };
@@ -298,11 +296,6 @@ function subSheet(reason) {
     };
     const chk = $("#sub-check", el); if (chk) chk.onclick = async () => { chk.disabled = true; const c = await pollActivation(); await refreshSub(); closeSheet(); render(); toast(c ? "انحدّث وضع اشتراكك" : "لسا ما في رد، بيوصلك لحاله"); };
     $("#logout", el).onclick = () => { logout(); closeSheet(); subState.active = false; refreshSub().then(render); toast("سجّلت خروج"); };
-    $("#s-apply", el).onclick = async () => {
-      const r = await applyToken($("#s-code", el).value);
-      if (!r.ok) return toast("الكود مو صحيح أو مو لهالجهاز");
-      closeSheet(); render(); toast(r.rejected ? "انرفض الطلب" : "⭐ تفعّل اشتراكك");
-    };
   });
 }
 let pollTimer = null;
@@ -934,6 +927,7 @@ function render() {
   const nav = document.querySelector("nav.tabs");
   if (typeof player !== "undefined" && player) return;
   if (!getAccount()) { nav.hidden = true; return renderLogin(); }
+  if (isAdmin()) { nav.hidden = true; app.innerHTML = ""; location.replace("admin.html"); return; } // الأدمن بيروح للوحة الإدارة مباشرة
   if (wiz || !prof().done) { if (!wiz) { startWizard(); return; } return renderWizard(); }
   const locked = !isPremium();
   nav.hidden = locked;
@@ -989,6 +983,7 @@ function renderLocked() {
 }
 if (typeof applyPlan === "function") applyPlan();
 render();
+registerUser();
 refreshSub().then(() => { render(); scheduleReminders(); const r = getReq(); if (r && r.status === "pending") { startPolling(); resendIfStale(); } else pollActivation().then(c => { if (c) refreshSub().then(render); }); });
 
 // تحديث تلقائي: إذا نزل تعديل جديد والتطبيق مفتوح بالخلفية، منعيد تحميله أول ما يرجع المستخدم عليه

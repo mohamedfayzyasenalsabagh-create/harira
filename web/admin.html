@@ -87,7 +87,7 @@ a{color:var(--herb)}
 .log{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}.log:first-child{border-top:0}
 .log span:first-child{font-size:18px}
 /* شريط التبويب */
-nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--card);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);
+nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--card);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);
   padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
 .tab{border:0;background:none;padding:7px 2px;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:var(--muted);position:relative}
 .tab span{font-size:20px;line-height:1}
@@ -106,8 +106,7 @@ nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--card
 <main id="m"><p class="muted">عم حمّل…</p></main>
 <nav class="tabs" id="nav" hidden>
   <button class="tab" data-v="reqs"><span>📥</span>الطلبات</button>
-  <button class="tab" data-v="subs"><span>👥</span>المشتركين</button>
-  <button class="tab" data-v="grant"><span>✨</span>تفعيل</button>
+  <button class="tab" data-v="subs"><span>👥</span>المستخدمين</button>
   <button class="tab" data-v="log"><span>🕘</span>السجل</button>
 </nav>
 <script src="sub.js"></script>
@@ -128,8 +127,10 @@ const KEYS = load("harira-admin", null);
 let REQS = load("harira-admin-reqs", {});   // طلبات مفكوكة
 let SUBS = load("harira-admin-subs", {});   // معلومات المشتركين (الاسم والرقم)
 let LOG = load("harira-admin-log", []);     // سجل العمليات
+let USERS = load("harira-admin-users", {}); // كل المستخدمين المسجلين (مفكوكين)
+let SEEN = new Set(load("harira-admin-seen", []));
 let DURABLE = {};                           // من subs.json: آخر تفعيل موقّع لكل حساب
-let view = "reqs", filter = "active", q = "", syncing = false, lastSync = 0;
+let view = "reqs", filter = "all", q = "", syncing = false, lastSync = 0;
 const pickPlan = {};
 
 function addLog(icon, text) { LOG.unshift({ icon, text, t: Date.now() }); LOG = LOG.slice(0, 200); store("harira-admin-log", LOG); }
@@ -152,15 +153,22 @@ async function sendToken(id, token) {
 }
 const decodeTok = t => { try { return JSON.parse(new TextDecoder().decode(unb64u(t.split(".")[0]))); } catch (e) { return null; } };
 
-// قائمة المشتركين الموحّدة: السجل الدائم (من أي موبايل أدمن) + اللي على هالموبايل
+// كل المستخدمين: المسجلين + التفعيلات الدائمة (من أي موبايل أدمن) + اللي على هالموبايل + أصحاب الطلبات
 function subscribers() {
   const out = {};
-  for (const [id, tok] of Object.entries(DURABLE)) { const d = decodeTok(tok); if (d && d.t === "ok") out[id] = { exp: d.exp, plan: d.plan, at: d.iat }; }
-  for (const [id, s] of Object.entries(SUBS)) out[id] = { ...(out[id] || {}), ...s, ...(out[id] && out[id].at > (s.at || 0) ? { exp: out[id].exp, plan: out[id].plan, at: out[id].at } : {}) };
-  for (const r of Object.values(REQS)) if (out[r.id]) out[r.id] = { name: r.name, phone: r.phone, email: r.email, ...out[r.id] };
+  const put = (id, o) => { out[id] = { ...(out[id] || {}), ...Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== "")) }; };
+  for (const [id, u] of Object.entries(USERS)) put(id, { name: u.name, email: u.email, phone: u.phone, first: u.first, seen: u.ts });
+  for (const r of Object.values(REQS)) if (r.id) put(r.id, { name: r.name, phone: r.phone, email: r.email, first: out[r.id] && out[r.id].first || r.ts });
+  const subOf = {};
+  for (const [id, tok] of Object.entries(DURABLE)) { const d = decodeTok(tok); if (d && d.t === "ok") subOf[id] = { exp: d.exp, plan: d.plan, at: d.iat }; }
+  for (const [id, x] of Object.entries(SUBS)) if (x.at && (!subOf[id] || x.at > subOf[id].at)) subOf[id] = { exp: x.exp, plan: x.plan, at: x.at };
+  for (const [id, x] of Object.entries(SUBS)) put(id, { name: x.name, phone: x.phone, email: x.email });
+  for (const [id, x] of Object.entries(subOf)) put(id, x);
   return out;
 }
-const isActive = s => s.exp === 0 || s.exp > Date.now();
+const isActive = s => s.exp !== undefined && (s.exp === 0 || s.exp > Date.now());
+const inTrialU = s => !isActive(s) && s.exp === undefined && s.first && s.first + SUB.trialDays * DAY > Date.now();
+const who = s => s.name || (s.email ? s.email.split("@")[0] : "مستخدم");
 
 async function sync(manual) {
   if (syncing) return; syncing = true; render();
@@ -181,6 +189,20 @@ async function sync(manual) {
     else if (manual) toast("ما في طلبات جديدة");
   } catch (e) { if (manual) toast("ما في اتصال، عم اعرض المحفوظ"); }
   try { DURABLE = await (await fetch("subs.json", { cache: "no-cache" })).json(); } catch (e) {}
+  // المستخدمين: الملف الدائم + الجديد من آخر ساعات
+  const blobs = [];
+  try { for (const [k, v] of Object.entries(await (await fetch("users.json", { cache: "no-cache" })).json())) blobs.push([k, v]); } catch (e) {}
+  try { for (const l of (await (await fetch(SUB.ntfy + SUB.usersTopic + "/json?poll=1&since=all")).text()).split("\n")) { try { const m = JSON.parse(l); if (m.event === "message") blobs.push([m.id, m.message]); } catch (e) {} } } catch (e) {}
+  let nu = 0;
+  for (const [k, v] of blobs) {
+    if (SEEN.has(k)) continue; SEEN.add(k);
+    try { const d = await decrypt(v); if (d.t !== "reg" || !d.id) continue;
+      const o = USERS[d.id]; if (!o) nu++;
+      if (!o || (d.ts || 0) >= (o.ts || 0)) USERS[d.id] = { ...(o || {}), ...Object.fromEntries(Object.entries(d).filter(([, x]) => x !== "")), first: Math.min(d.first || Infinity, (o && o.first) || Infinity) };
+    } catch (e) {}
+  }
+  store("harira-admin-users", USERS); store("harira-admin-seen", [...SEEN].slice(-5000));
+  if (nu) addLog("👋", "انضم " + fmtN(nu) + " مستخدم جديد");
   syncing = false; lastSync = Date.now(); render();
 }
 
@@ -205,7 +227,7 @@ async function decide(rid, plan, why) {
 }
 async function grant(idRaw, plan, label) {
   const id = String(idRaw).toLowerCase().replace(/[^0-9a-f]/g, "");
-  if (id.length < 12) return toast("كود الحساب ناقص أو غلط");
+  if (id.length < 12) return toast("حساب غلط");
   const cur = subscribers()[id], base = cur && cur.exp > Date.now() ? cur.exp : Date.now();
   const exp = plan === "stop" ? Date.now() - 1000 : plan === "life" ? 0 : base + PLANS[plan][1] * DAY;
   try {
@@ -213,7 +235,7 @@ async function grant(idRaw, plan, label) {
     await sendToken(id, tok);
     SUBS[id] = { ...(SUBS[id] || {}), exp, plan, at: Date.now() };
     store("harira-admin-subs", SUBS);
-    const name = (SUBS[id] && SUBS[id].name) || label || shortCode(id);
+    const name = label || (SUBS[id] && SUBS[id].name) || "مستخدم";
     addLog(plan === "stop" ? "⛔" : "✨", (plan === "stop" ? "إيقاف " : "تفعيل ") + name + (plan === "stop" ? "" : " · " + PLANS[plan][0]));
     toast(plan === "stop" ? "⛔ توقف الاشتراك" : "✨ تم، بيوصله خلال ثواني"); render();
   } catch (e) { toast("ما قدرت ابعت. تأكد من النت وجرب كمان مرة"); }
@@ -241,7 +263,7 @@ function render() {
   nav.hidden = false;
   const subs = subscribers(), list = Object.entries(subs), now = Date.now();
   const pend = Object.entries(REQS).filter(([, r]) => r.status === "new").sort((a, b) => a[1].ts - b[1].ts);
-  const active = list.filter(([, s]) => isActive(s)), lifetime = active.filter(([, s]) => s.exp === 0);
+  const active = list.filter(([, s]) => isActive(s)), lifetime = active.filter(([, s]) => s.exp === 0), trial = list.filter(([, s]) => inTrialU(s));
   const expSoon = active.filter(([, s]) => s.exp && s.exp - now < 7 * DAY);
   const paying = active.length - lifetime.length, price = +(SUB.config.price || 500);
   document.querySelectorAll(".tab").forEach(t => { t.setAttribute("aria-selected", t.dataset.v === view); const c = t.querySelector(".count"); if (c) c.remove(); if (t.dataset.v === "reqs" && pend.length) t.insertAdjacentHTML("beforeend", `<span class="count num">${fmtN(pend.length)}</span>`); });
@@ -253,7 +275,7 @@ function render() {
       <div class="meta"><div class="row between"><b>${esc(r.name)}</b><span class="pill p-new">⏳ ${ago(r.ts)}</span></div>
         ${r.email ? `<small class="muted" dir="ltr" style="text-align:end">${esc(r.email)}</small>` : ""}
         <small><a href="${waLink(r.phone)}" target="_blank" rel="noopener" dir="ltr">📞 ${esc(r.phone)}</a></small>
-        <small class="muted">كود <code>${esc(shortCode(r.id))}</code>${subs[r.id] && isActive(subs[r.id]) ? ` · <span class="pill p-ok">مشترك لحد ${fmtDate(subs[r.id].exp)}</span>` : ""}</small></div>
+        ${subs[r.id] && isActive(subs[r.id]) ? `<small><span class="pill p-ok">مشترك لحد ${fmtDate(subs[r.id].exp)}</span> التفعيل بيمدّد</small>` : ""}</div>
       <div class="actions"><div class="plan-pick">${Object.entries(PLANS).map(([k, [l, d]]) => `<button data-pick="${rid}|${k}" aria-pressed="${pp === k}"><b>${l}</b>${d ? `<small class="muted num">${fmtN(price * d / 30)} ل.س</small>` : `<small class="muted">مجاني</small>`}</button>`).join("")}</div>
         <div class="row"><button class="btn" data-ok="${rid}" style="flex:1">✓ موافقة · ${PLANS[pp][0]}</button><button class="btn soft-red" data-rej="${rid}">رفض</button></div></div></div>`; }).join("")
       : `<div class="card empty"><span style="font-size:40px">🎉</span><b>ما في طلبات معلّقة</b>كل ما حدا يبعت إيصال بيطلع هون، وبتتحدّث الصفحة لحالها كل ٣٠ ثانية.</div>`;
@@ -261,26 +283,23 @@ function render() {
     if (done.length) body += `<div class="card"><h2>آخر القرارات</h2>${done.map(([, r]) => `<div class="row between" style="border-top:1px solid var(--line);padding-top:8px"><span>${esc(r.name)}</span><span class="pill ${r.status === "ok" ? "p-ok" : "p-no"}">${r.status === "ok" ? "✓ " + fmtDate(r.exp) : "✕ مرفوض"}</span></div>`).join("")}</div>`;
   }
   if (view === "subs") {
-    const f = { active: ([, s]) => isActive(s), soon: ([, s]) => isActive(s) && s.exp && s.exp - now < 7 * DAY, life: ([, s]) => s.exp === 0, ended: ([, s]) => !isActive(s), all: () => true }[filter];
+    const status = s => isActive(s) ? (s.exp === 0 ? "life" : s.exp - now < 7 * DAY ? "soon" : "sub") : inTrialU(s) ? "trial" : s.exp !== undefined ? "ended" : "free";
+    const f = { all: () => true, sub: s => isActive(s), trial: s => inTrialU(s), soon: s => status(s) === "soon", life: s => s.exp === 0, ended: s => !isActive(s) && !inTrialU(s) }[filter];
     const ql = q.trim().toLowerCase();
-    const rows = list.filter(f).filter(([id, s]) => !ql || [s.name, s.email, s.phone, id].some(x => String(x || "").toLowerCase().includes(ql)))
-      .sort((a, b) => (a[1].exp === 0 ? 1e15 : a[1].exp) - (b[1].exp === 0 ? 1e15 : b[1].exp));
-    body = `<div class="search"><span>🔍</span><input id="q" type="search" placeholder="دوّر بالاسم أو الرقم أو الإيميل" value="${esc(q)}"></div>
-      <div class="seg">${[["active", "فعّال", active.length], ["soon", "بينتهي قريباً", expSoon.length], ["life", "مدى الحياة", lifetime.length], ["ended", "منتهي", list.length - active.length], ["all", "الكل", list.length]].map(([k, l, n]) => `<button data-f="${k}" aria-pressed="${filter === k}">${l} <span class="num">${fmtN(n)}</span></button>`).join("")}</div>
-      <div class="card">${rows.length ? rows.map(([id, s]) => { const left = s.exp ? Math.ceil((s.exp - now) / DAY) : null; return `<div class="sub" data-sub="${id}">
-        <div class="av">${esc((s.name || "؟").trim().charAt(0))}</div>
-        <div class="t"><b>${esc(s.name || "بدون اسم")}</b><small class="muted"><code>${esc(shortCode(id))}</code> ${s.phone ? "· " + esc(s.phone) : ""}</small>
-          ${s.exp ? `<div class="days ${left < 7 ? "low" : ""}"><i style="width:${Math.max(0, Math.min(100, left / 30 * 100))}%"></i></div>` : ""}</div>
-        <span class="pill ${s.exp === 0 ? "p-life" : left > 7 ? "p-ok" : left > 0 ? "p-new" : "p-no"}">${s.exp === 0 ? "∞ مدى الحياة" : left > 0 ? "باقي " + fmtN(left) + " يوم" : "منتهي"}</span></div>`; }).join("")
-        : `<div class="empty"><b>ما في نتائج</b>${list.length ? "جرّب فلتر تاني." : "أول ما توافق على طلب بيطلع المشترك هون."}</div>`}</div>`;
-  }
-  if (view === "grant") {
-    body = `<div class="card"><h2>تفعيل أو تمديد يدوي</h2><small class="muted">المستخدم بيلاقي كود حسابه بالتطبيق: فوق على زر الاشتراك ← "كود حسابك". مفيد إذا دفع بطريقة تانية، أو بدك تهديه اشتراك.</small>
-      <input id="gid" placeholder="كود الحساب" dir="ltr"><input id="gname" placeholder="الاسم (اختياري)">
-      <div class="plan-pick">${Object.entries(PLANS).map(([k, [l]]) => `<button data-g="${k}"><b>${l}</b></button>`).join("")}</div>
-      <button class="btn soft-red" data-g="stop">⛔ إيقاف اشتراك هالحساب</button></div>
-      <div class="card"><h2>شلون بيمشي الشغل</h2><ol style="margin:0;padding-inline-start:20px;line-height:2" class="muted">
-        <li>المستخدم بيدفع ${fmtN(price)} ل.س بشام كاش وبيرفع الإيصال.</li><li>بيوصلك هون مشفّر، وبتتأكد من الإيصال بعينك.</li><li>بتوافق، والتطبيق عنده بيتفعّل خلال ثواني، ومن أي موبايل بيسجل منه.</li></ol></div>`;
+    const rows = list.filter(([, s]) => f(s)).filter(([, s]) => !ql || [s.name, s.email, s.phone].some(x => String(x || "").toLowerCase().includes(ql)))
+      .sort((a, b) => (b[1].at || b[1].seen || b[1].first || 0) - (a[1].at || a[1].seen || a[1].first || 0));
+    const pill = s => { const st = status(s), left = s.exp ? Math.ceil((s.exp - now) / DAY) : 0;
+      return st === "life" ? `<span class="pill p-life">∞ مدى الحياة</span>` : st === "sub" ? `<span class="pill p-ok">باقي ${fmtN(left)} يوم</span>` : st === "soon" ? `<span class="pill p-new">باقي ${fmtN(left)} يوم</span>`
+        : st === "trial" ? `<span class="pill" style="background:var(--bg);color:var(--water)">تجربة</span>` : `<span class="pill p-no">${st === "ended" ? "اشتراك منتهي" : "مو مشترك"}</span>`; };
+    const notSub = list.filter(([, s]) => !isActive(s) && !inTrialU(s)).length;
+    body = `<div class="search"><span>🔍</span><input id="q" type="search" placeholder="دوّر بالاسم أو الإيميل أو الرقم" value="${esc(q)}"></div>
+      <div class="seg">${[["all", "الكل", list.length], ["sub", "مشتركين", active.length], ["trial", "تجربة", trial.length], ["soon", "بينتهي قريباً", expSoon.length], ["life", "مدى الحياة", lifetime.length], ["ended", "مو مشتركين", notSub]].map(([k, l, n]) => `<button data-f="${k}" aria-pressed="${filter === k}">${l} <span class="num">${fmtN(n)}</span></button>`).join("")}</div>
+      <div class="card">${rows.length ? rows.map(([id, s]) => `<div class="sub" data-sub="${id}">
+        <div class="av">${esc(who(s).trim().charAt(0))}</div>
+        <div class="t"><b>${esc(who(s))}</b><small class="muted" dir="ltr" style="display:block;text-align:end;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.email || s.phone || "")}</small>
+          ${isActive(s) && s.exp ? `<div class="days ${s.exp - now < 7 * DAY ? "low" : ""}"><i style="width:${Math.max(0, Math.min(100, (s.exp - now) / (30 * DAY) * 100))}%"></i></div>` : ""}</div>
+        ${pill(s)}</div>`).join("")
+        : `<div class="empty"><b>ما في نتائج</b>${list.length ? "جرّب فلتر تاني." : "أول ما حدا يسجل بالتطبيق بيطلع هون."}</div>`}</div>`;
   }
   if (view === "log") {
     body = `<div class="card">${LOG.length ? LOG.slice(0, 60).map(l => `<div class="log"><span>${l.icon}</span><span style="flex:1">${esc(l.text)}</span><small class="muted">${ago(l.t)}</small></div>`).join("") : `<div class="empty"><b>السجل فاضي</b>كل موافقة أو رفض أو تفعيل بيتسجل هون.</div>`}</div>`;
@@ -288,16 +307,17 @@ function render() {
 
   m.innerHTML = `<div class="top"><img class="logo" src="icon-192.png" alt=""><div class="t"><h1>لوحة الإدارة</h1>
       <div class="sync"><i class="dot ${syncing ? "busy" : ""}"></i>${syncing ? "عم حدّث…" : lastSync ? "آخر تحديث " + ago(lastSync) : ""}</div></div>
-    <button class="icon-btn" id="refresh" aria-label="تحديث">⟳</button><a class="icon-btn" href="./" aria-label="رجوع للتطبيق">↩</a></div>
+    <button class="icon-btn" id="refresh" aria-label="تحديث">⟳</button><button class="icon-btn" id="out" aria-label="تسجيل خروج" title="تسجيل خروج">⎋</button></div>
   <div class="kpis">
     <div class="kpi ${pend.length ? "alert" : ""}"><small>طلبات بانتظارك</small><b class="num">${fmtN(pend.length)}</b></div>
     <div class="kpi"><small>مشتركين فعّالين</small><b class="num">${fmtN(active.length)}</b><i>${fmtN(lifetime.length)} مدى الحياة</i></div>
-    <div class="kpi warn"><small>بينتهوا خلال أسبوع</small><b class="num">${fmtN(expSoon.length)}</b></div>
+    <div class="kpi warn"><small>كل المستخدمين</small><b class="num">${fmtN(list.length)}</b><i>${fmtN(trial.length)} بالتجربة · ${fmtN(expSoon.length)} بينتهوا قريباً</i></div>
     <div class="kpi info"><small>دخل شهري متوقّع</small><b class="num">${fmtN(paying * price)}</b><i>ل.س</i></div>
   </div>
   ${body}`;
 
   $("#refresh").onclick = () => sync(true);
+  $("#out").onclick = () => confirmSheet("تسجيل خروج", "بتطلع من حساب الأدمن على هالموبايل. الطلبات والمشتركين ما بيضيعوا.", "تسجيل خروج", true, () => { logout(); location.replace("./"); });
   m.querySelectorAll("[data-img]").forEach(i => i.onclick = () => lightbox(i.src));
   m.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => { const [rid, p] = b.dataset.pick.split("|"); pickPlan[rid] = p; render(); });
   m.querySelectorAll("[data-ok]").forEach(b => b.onclick = () => { const rid = b.dataset.ok, r = REQS[rid], p = pickPlan[rid] || "m1";
@@ -311,18 +331,16 @@ function render() {
   m.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { filter = b.dataset.f; render(); });
   const qi = $("#q"); if (qi) qi.oninput = () => { q = qi.value; const pos = qi.selectionStart; render(); const n = $("#q"); n.focus(); n.setSelectionRange(pos, pos); };
   m.querySelectorAll("[data-sub]").forEach(row => row.onclick = () => { const id = row.dataset.sub, s = subscribers()[id];
-    sheet(`<div class="row" style="gap:12px"><div class="av" style="width:56px;height:56px;font-size:22px">${esc((s.name || "؟").charAt(0))}</div><div><h2>${esc(s.name || "بدون اسم")}</h2><small class="muted">${s.exp === 0 ? "مدى الحياة" : isActive(s) ? "مشترك لحد " + fmtDate(s.exp) : "منتهي من " + fmtDate(s.exp)}</small></div></div>
+    sheet(`<div class="row" style="gap:12px"><div class="av" style="width:56px;height:56px;font-size:22px">${esc(who(s).charAt(0))}</div><div><h2>${esc(who(s))}</h2><small class="muted">${s.exp === 0 ? "مشترك مدى الحياة" : isActive(s) ? "مشترك لحد " + fmtDate(s.exp) : inTrialU(s) ? "بالتجربة لحد " + fmtDate(s.first + SUB.trialDays * DAY) : s.exp !== undefined ? "اشتراكه خلص " + fmtDate(s.exp) : "مو مشترك"}</small></div></div>
       ${s.email ? `<div class="row between"><span class="muted">الإيميل</span><span dir="ltr">${esc(s.email)}</span></div>` : ""}
       ${s.phone ? `<div class="row between"><span class="muted">الرقم</span><a href="${waLink(s.phone)}" target="_blank" rel="noopener" dir="ltr">💬 ${esc(s.phone)}</a></div>` : ""}
-      <div class="row between"><span class="muted">كود الحساب</span><code>${esc(id)}</code></div>
-      <b>تمديد</b><div class="plan-pick">${Object.entries(PLANS).map(([k, [l]]) => `<button data-x="${k}"><b>+ ${l}</b></button>`).join("")}</div>
-      <button class="btn soft-red" data-x="stop">⛔ إيقاف الاشتراك</button>`, (el, close) => {
+      ${s.first ? `<div class="row between"><span class="muted">سجّل</span><span>${fmtDate(s.first)}</span></div>` : ""}
+      <b>${isActive(s) ? "تمديد الاشتراك" : "تفعيل اشتراك"}</b><div class="plan-pick">${Object.entries(PLANS).map(([k, [l]]) => `<button data-x="${k}"><b>${k === "life" ? "🎁 " + l : (isActive(s) ? "+ " : "") + l}</b></button>`).join("")}</div>
+      ${isActive(s) ? `<button class="btn soft-red" data-x="stop">⛔ إيقاف الاشتراك</button>` : ""}`, (el, close) => {
       el.querySelectorAll("[data-x]").forEach(b => b.onclick = () => { const p = b.dataset.x;
-        if (p === "stop") { close(); confirmSheet("إيقاف " + esc(s.name || ""), "التطبيق عنده رح يتقفل لحد ما تفعّله من جديد.", "⛔ أوقف", true, () => grant(id, "stop")); }
-        else { close(); grant(id, p); } }); }); });
-  m.querySelectorAll("[data-g]").forEach(b => b.onclick = () => { const id = $("#gid").value, nm = $("#gname").value.trim(), p = b.dataset.g;
-    if (nm) { const cid = String(id).toLowerCase().replace(/[^0-9a-f]/g, ""); SUBS[cid] = { ...(SUBS[cid] || {}), name: nm }; }
-    if (p === "stop") confirmSheet("إيقاف الاشتراك", "متأكد بدك توقف اشتراك هالحساب؟", "⛔ أوقف", true, () => grant(id, p, nm)); else grant(id, p, nm); });
+        close();
+        if (p === "stop") confirmSheet("إيقاف " + esc(who(s)), "التطبيق عنده رح يتقفل لحد ما تفعّله من جديد.", "⛔ أوقف", true, () => grant(id, "stop", who(s)));
+        else confirmSheet((isActive(s) ? "تمديد " : "تفعيل ") + esc(who(s)), p === "life" ? "رح ينفتحله التطبيق مدى الحياة مجاناً." : "رح ينضاف " + PLANS[p][0] + " لاشتراكه.", "✓ تأكيد", false, () => grant(id, p, who(s))); }); }); });
 }
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => { view = t.dataset.v; render(); scrollTo(0, 0); });
 render();

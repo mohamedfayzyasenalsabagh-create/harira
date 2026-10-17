@@ -60,3 +60,21 @@ for line in alines:
         continue
 json.dump(subs, open(subs_f, "w"), separators=(",", ":"))
 print(f"activations={len(alines)} new={na} accounts={len(subs)}")
+
+# ===== المستخدمين: تسجيلات مشفّرة للأدمن، منحفظها بـ web/users.json (ما حدا بيقدر يقراها غير الأدمن) =====
+users_topic = os.environ.get("USERS_TOPIC") or _re.search(r'usersTopic: "([^"]+)"', sub_js).group(1)
+users_f = os.environ.get("USERS_FILE", "web/users.json")
+users = json.load(open(users_f)) if os.path.exists(users_f) else {}
+ulines = urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{users_topic}/json?poll=1&since=all", headers={"User-Agent": "harira-collector"}), timeout=60).read().decode().splitlines()
+nu = 0
+for line in ulines:
+    try:
+        m = json.loads(line)
+        if m.get("event") != "message" or m["id"] in users: continue
+        o = json.loads(m["message"])
+        if not (isinstance(o.get("epk"), dict) and o.get("iv") and o.get("ct")) or len(m["message"]) > 4000: continue
+        users[m["id"]] = m["message"]; nu += 1
+    except Exception:
+        continue
+json.dump(users, open(users_f, "w"), separators=(",", ":"))
+print(f"users_msgs={len(ulines)} new={nu} total={len(users)}")

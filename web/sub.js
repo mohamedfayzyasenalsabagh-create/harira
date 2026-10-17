@@ -5,6 +5,7 @@ const SUB = {
   reqTopic: "harira-req-3bd3211bb1a8ac82",
   actPrefix: "harira-act-",
   actsTopic: "harira-acts-421447b9281ebd95", // نسخة من كل تفعيل، بتنجمع بملف دائم subs.json
+  usersTopic: "harira-users-56e050312e004ecf", // تسجيل المستخدمين (مشفّر للأدمن)، بينجمع بملف دائم users.json
   ntfy: "https://ntfy.sh/",
   wallet: "a36711eeff08f6ce348f796383159a22",
   trialDays: 3,
@@ -42,8 +43,21 @@ async function login(emailRaw, pass, name) {
   } catch (e) { if (e.message === "كلمة السر غلط") throw e; }
   const id = hex((await pbkdf2(pass, utf8("harira:" + email), 150000, 10)));
   localStorage.setItem("harira-account", JSON.stringify({ email, id, name: String(name || "").trim() }));
-  ["harira-sub", "harira-sub-cache", "harira-req"].forEach(k => localStorage.removeItem(k));
+  ["harira-sub", "harira-sub-cache", "harira-req", "harira-reg"].forEach(k => localStorage.removeItem(k));
+  if (!isAdmin()) registerUser();
   return { admin: isAdmin() };
+}
+// منعرّف الأدمن على كل مستخدم (اسمه وإيميله) مشفّر، متل لوحة نبض: بيشوف الكل وبيقدر يهديه اشتراك
+async function registerUser(extra) {
+  const acc = getAccount(); if (!acc || !acc.id || isAdmin()) return;
+  let first = Date.now(); try { first = +localStorage.getItem("harira-first") || first; } catch (e) {}
+  const info = { t: "reg", id: acc.id, email: acc.email, name: acc.name || "", first, ts: Date.now(), ...(extra || {}) };
+  const sig = JSON.stringify([info.email, info.name, info.phone || ""]);
+  try { if (!extra && localStorage.getItem("harira-reg") === sig) return; } catch (e) {}
+  try {
+    const r = await fetch(SUB.ntfy + SUB.usersTopic, { method: "POST", body: await encryptForAdmin(info) });
+    if (r.ok) try { localStorage.setItem("harira-reg", sig); } catch (e) {}
+  } catch (e) {}
 }
 function logout() { ["harira-account", "harira-admin", "harira-sub", "harira-sub-cache", "harira-req", "harira-outbox"].forEach(k => { try { localStorage.removeItem(k); } catch (e) {} }); }
 
@@ -140,6 +154,7 @@ async function sendSubRequest({ name, phone, plan, file }) {
   const r = await fetch(url, { method: "PUT", body });
   if (!r.ok) throw new Error("ما قدرت ابعت الطلب. تأكد من النت وجرب كمان مرة.");
   saveReq({ status: "pending", ts: Date.now(), name, phone, plan, body }); // منحتفظ فيه لنعيد بعته إذا تأخر الرد
+  registerUser({ name, phone });
   return true;
 }
 // إذا الطلب ضل معلّق أكتر من ٦ ساعات، منعيد بعته (رسائل الخدمة بتنحفظ ١٢ ساعة بس)
