@@ -18,12 +18,12 @@ jobs:
           mkdir -p /tmp/r; cd /tmp/r
           U=https://models.github.ai/inference/chat/completions
           curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://mohamedfayzyasenalsabagh-create.github.io" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: authorization,content-type" $U > cors.txt 2>&1
-          curl -sL -o food.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Good_Food_Display_-_NCI_Visuals_Online.jpg/640px-Good_Food_Display_-_NCI_Visuals_Online.jpg"
-          B64=$(base64 -w0 food.jpg)
+          curl -sL -A "Mozilla/5.0 harira-probe" -o food.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Good_Food_Display_-_NCI_Visuals_Online.jpg/640px-Good_Food_Display_-_NCI_Visuals_Online.jpg"
+          file food.jpg >> models.txt; B64=$(base64 -w0 food.jpg)
           for M in openai/gpt-4.1-mini openai/gpt-4o-mini meta/Llama-4-Scout-17B-16E-Instruct; do
             jq -n --arg m "$M" --arg img "data:image/jpeg;base64,$B64" '{model:$m,max_tokens:300,messages:[{role:"user",content:[{type:"text",text:"List the foods in this photo with estimated grams as short JSON."},{type:"image_url",image_url:{url:$img}}]}]}' > body.json
             echo "== $M" >> models.txt
-            curl -s -D - -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" -H "Origin: https://mohamedfayzyasenalsabagh-create.github.io" -d @body.json $U | grep -iE "^HTTP|access-control|x-ratelimit|content|\"message\"" | head -20 >> models.txt
+            curl -s -D - -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" -H "Origin: https://mohamedfayzyasenalsabagh-create.github.io" -d @body.json $U | head -c 3000 >> models.txt; echo >> models.txt
           done
           rm -f food.jpg body.json
           git config --global user.name ci; git config --global user.email ci@x
