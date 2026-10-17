@@ -13,14 +13,11 @@ jobs:
       - run: |
           mkdir -p /tmp/m && cd /tmp/m
           try(){ echo "== $1" >> log.txt; curl -sSL -A "Mozilla/5.0" -o "$2" "$1" -w "%{http_code} %{size_download}\n" >> log.txt 2>&1; file "$2" >> log.txt; }
-          try "https://tfhub.dev/google/lite-model/aiy/vision/classifier/food_V1/1?lite-format=tflite" a.tflite
-          try "https://www.kaggle.com/api/v1/models/google/aiy/tfLite/vision-classifier-food-v1/1/download" b.tgz
-          try "https://storage.googleapis.com/tfhub-lite-models/google/lite-model/aiy/vision/classifier/food_V1/1.tflite" c.tflite
-          try "https://www.gstatic.com/aihub/tfhub/labelmaps/aiy_food_V1_labelmap.csv" labels.csv
-          (file b.tgz | grep -q gzip) && mkdir -p bx && tar xzf b.tgz -C bx && ls -la bx >> log.txt
-          ls -la >> log.txt; head -5 labels.csv >> log.txt; wc -l labels.csv >> log.txt
-          # احتفظ بأول موديل صالح
-          for f in a.tflite c.tflite bx/*.tflite; do [ -f "$f" ] && head -c 8 "$f" | grep -q TFL3 && cp "$f" food.tflite && echo "picked $f" >> log.txt && break; done
-          i=0; for u in "https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=640" "https://images.pexels.com/photos/2233348/pexels-photo-2233348.jpeg?auto=compress&w=640" "https://images.pexels.com/photos/1279330/pexels-photo-1279330.jpeg?auto=compress&w=640" "https://images.pexels.com/photos/5779368/pexels-photo-5779368.jpeg?auto=compress&w=640" "https://images.pexels.com/photos/10928214/pexels-photo-10928214.jpeg?auto=compress&w=640"; do i=$((i+1)); curl -sL -A "Mozilla/5.0" -o test$i.jpg "$u"; file test$i.jpg >> log.txt; done
-          rm -f a.tflite c.tflite b.tgz; rm -rf bx
+          try "https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/int8/1/efficientnet_lite0.tflite" general.tflite
+          try "https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite2/int8/1/efficientnet_lite2.tflite" general2.tflite
+          try "https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite" embed.tflite
+          try "https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_large/float32/1/mobilenet_v3_large.tflite" embed_large.tflite
+          for i in 1 2 3 4 5 6; do :; done
+          i=0; for u in "https://images.pexels.com/photos/1132047/pexels-photo-1132047.jpeg?auto=compress&w=640" "https://images.pexels.com/photos/1435904/pexels-photo-1435904.jpeg?auto=compress&w=640" "https://images.pexels.com/photos/2286776/pexels-photo-2286776.jpeg?auto=compress&w=640" "https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=640" "https://images.pexels.com/photos/70746/strawberries-red-fruit-royalty-free-70746.jpeg?auto=compress&w=640" "https://images.pexels.com/photos/2862154/pexels-photo-2862154.jpeg?auto=compress&w=640"; do i=$((i+1)); curl -sL -A "Mozilla/5.0" -o t$i.jpg "$u"; file t$i.jpg >> log.txt; done
+          ls -la >> log.txt
           git init -q -b ci-model && git add -A && git -c user.name=ci -c user.email=ci@x commit -qm model && git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-model
