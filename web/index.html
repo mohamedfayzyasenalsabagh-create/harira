@@ -53,7 +53,8 @@ input[type=text],input[type=number],input[type=search],select{width:100%;padding
 input:focus,select:focus{outline:2px solid var(--herb);border-color:transparent}
 
 /* ترويسة اليوم */
-.head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.head > .row{flex-wrap:wrap;min-width:0}
 .datebar{display:flex;align-items:center;gap:8px}
 .datebar span{min-width:96px;text-align:center;font-weight:500}
 
@@ -147,6 +148,8 @@ nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--card
 </nav>
 <script src="i18n.js"></script>
 <script src="foods.js"></script>
+<script src="tips.js"></script>
+<script src="sub.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

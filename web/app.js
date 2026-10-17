@@ -84,7 +84,8 @@ function dayLabel() {
 function renderToday() {
   const list = entries();
   const tot = list.reduce((a, e) => ({ k: a.k + e.k, p: a.p + e.p, cb: a.cb + e.cb, f: a.f + e.f }), { k: 0, p: 0, cb: 0, f: 0 });
-  const goal = S.goal || 2000;
+  const burned = (S.ex && S.ex[key(day)] || []).reduce((a, e) => a + e.k, 0);
+  const goal = (S.goal || 2000) + burned;
   const pct = Math.min(tot.k / goal, 1);
   const over = tot.k > goal;
   const C = 2 * Math.PI * 62;
@@ -105,7 +106,9 @@ function renderToday() {
 
   app.innerHTML = `
   ${updateBanner()}
-  <div class="head"><div class="row" style="gap:8px"><h1>حريره</h1><button class="chip" id="lang" aria-label="اللغة">${LANG === "en" ? "ع" : "EN"}</button></div>
+  <div class="head"><div class="row" style="gap:8px"><h1>حريره</h1><button class="chip" id="lang" aria-label="اللغة">${LANG === "en" ? "ع" : "EN"}</button>
+    <button class="chip" id="subchip" style="${subState.active ? "" : "background:var(--saffron);border-color:var(--saffron);color:#1E2A20"}">${subBadge()}</button>
+    <button class="icon-btn" id="bell" aria-label="التذكيرات" style="width:34px;height:34px">🔔</button></div>
     <div class="datebar"><button class="icon-btn" id="prev" aria-label="اليوم السابق">${LANG === "en" ? "‹" : "›"}</button><span>${dayLabel()}</span><button class="icon-btn" id="next" aria-label="اليوم التالي" ${key(day) === key(new Date()) ? "disabled style=\"opacity:.35\"" : ""}>${LANG === "en" ? "›" : "‹"}</button></div></div>
   <div class="stack">
     <div class="card ring-wrap">
@@ -117,7 +120,8 @@ function renderToday() {
       </div>
       <div class="macros">
         <div class="row between"><span>${over ? "زيادة" : "باقي"} <b class="num" style="color:${over ? "var(--tomato)" : "var(--herb)"}">${fmt(Math.abs(left))}</b></span>
-          <button class="chip" id="goal">الهدف: <span class="num">${fmt(goal)}</span></button></div>
+          <button class="chip" id="goal">الهدف: <span class="num">${fmt(S.goal || 2000)}</span></button></div>
+        ${burned ? `<small class="muted">🏃 حرقت <b class="num">${fmt(burned)}</b> سعرة رياضة، انضافت لميزانيتك</small>` : ""}
         ${macro("بروتين", tot.p, tg.p, "var(--herb)")}
         ${macro("كربوهيدرات", tot.cb, tg.cb, "var(--saffron)")}
         ${macro("دهون", tot.f, tg.f, "var(--lentil)")}
@@ -125,19 +129,25 @@ function renderToday() {
     </div>
     ${byMeal || `<div class="card empty"><div class="bowl">ح</div><p>ما سجلت شي ${dayLabel() === "اليوم" ? "اليوم" : "بهاليوم"} لسا.</p>
       <div class="row" style="justify-content:center;flex-wrap:wrap"><button class="btn" data-go="add">اختار أكلة</button><button class="btn ghost" data-go="photo">صوّر صحنك</button></div></div>`}
+    ${tipCard()}
     ${waterCard()}
+    ${exerciseCard()}
     ${weekCard()}
-    ${weightCard()}
+    ${isPremium() ? weightCard() : ""}
   </div>`;
 
   $("#prev").onclick = () => { day.setDate(day.getDate() - 1); render(); };
   $("#next").onclick = () => { if (key(day) !== key(new Date())) { day.setDate(day.getDate() + 1); render(); } };
   $("#goal").onclick = goalSheet;
   $("#lang").onclick = () => setLang(LANG === "en" ? "ar" : "en");
+  $("#subchip").onclick = () => subSheet();
+  $("#bell").onclick = () => requirePremium("التذكيرات") && remindersSheet();
+  const xa = $("#ex-add"); if (xa) xa.onclick = () => requirePremium("الرياضة") && exerciseSheet();
+  app.querySelectorAll("[data-exdel]").forEach(b => b.onclick = () => { const l = S.ex[key(day)]; l.splice(+b.dataset.exdel, 1); save(); render(); });
   const ub = $("#upd-x"); if (ub) ub.onclick = () => { try { sessionStorage.setItem("harira-upd-x", "1"); } catch (e) {} render(); };
   $("#w-plus").onclick = () => { const k = key(day); S.water = S.water || {}; S.water[k] = Math.min(20, (S.water[k] || 0) + 1); save(); render(); };
   $("#w-minus").onclick = () => { const k = key(day); S.water = S.water || {}; S.water[k] = Math.max(0, (S.water[k] || 0) - 1); save(); render(); };
-  $("#wt-add").onclick = weightSheet;
+  const wa = $("#wt-add"); if (wa) wa.onclick = weightSheet;
   app.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
     const l = entries(); l.splice(+b.dataset.del, 1); save(); render();
   });
@@ -201,7 +211,9 @@ function goalSheet() {
     };
     el.querySelectorAll("[data-sex]").forEach(b => b.onclick = () => { pr.sex = b.dataset.sex; el.querySelectorAll("[data-sex]").forEach(x => x.setAttribute("aria-pressed", x === b)); upd(); });
     ["p-a", "p-h", "p-w", "p-act", "p-aim"].forEach(id => $("#" + id, el).oninput = upd);
-    if (S.profile) upd();
+    if (!isPremium()) { ["p-a", "p-h", "p-w", "p-act", "p-aim"].forEach(id => { const x = $("#" + id, el); x.disabled = true; }); el.querySelectorAll("[data-sex]").forEach(b => b.disabled = true);
+      $("#p-res", el).innerHTML = `🎯 الحساب التلقائي للمشتركين. <button class="chip" id="p-sub">اشترك</button>`; $("#p-sub", el).onclick = () => { closeSheet(); setTimeout(() => subSheet("حساب الهدف تلقائياً"), 50); }; }
+    else if (S.profile) upd();
     $("#g-save", el).onclick = () => {
       const v = Math.round(+$("#g-in", el).value);
       if (!(v >= 800 && v <= 6000)) return toast("اكتب رقم بين ٨٠٠ و٦٠٠٠");
@@ -222,6 +234,159 @@ function updateBanner() {
   if (!wrapperVer || latestWrapper <= wrapperVer || hidden) return "";
   return `<div class="note row between" style="gap:8px;margin-bottom:12px"><span>في نسخة جديدة من التطبيق</span>
     <span class="row" style="gap:6px"><a class="chip" href="${APK_URL}" style="text-decoration:none;color:inherit">نزّلها</a><button class="chip" id="upd-x">لاحقاً</button></span></div>`;
+}
+
+// ===== الاشتراك =====
+const PREMIUM_FEATURES = ["📸 تحليل الصحن بالصورة مع السعرات", "🍽️ تسجيل الأكل وأكتر من ٢٥٠ أكلة", "🔎 مسح الباركود", "🏋️ الرياضة والسعرات المحروقة", "🔔 تذكير المي والوجبات ونصيحة يومية", "🎯 حساب الهدف تلقائياً", "💧 عداد المي و⚖️ متابعة الوزن"];
+function subBadge() {
+  if (subState.active) return subState.lifetime ? "⭐ مدى الحياة" : "⭐ مشترك";
+  if (inTrial()) return "تجربة: " + fmt(Math.ceil((subState.trialEnds - Date.now()) / 864e5)) + " أيام";
+  return "اشترك";
+}
+function requirePremium(what) {
+  if (isPremium()) return true;
+  subSheet(what); return false;
+}
+function subSheet(reason) {
+  const req = getReq(), id = deviceId(), price = SUB.config.price;
+  let body;
+  if (subState.active) {
+    body = `<div class="note">⭐ اشتراكك فعّال ${subState.lifetime ? "مدى الحياة" : "لحد " + new Date(subState.exp).toLocaleDateString(LOC, { day: "numeric", month: "long", year: "numeric" })}. شكراً إلك!</div>`;
+  } else if (req && req.status === "pending") {
+    body = `<div class="note">⏳ طلبك وصل وعم ينراجع. أول ما ينقبل بيتفعّل التطبيق لحاله، وما في داعي تبعت مرة تانية.</div>
+      <button class="btn ghost" id="sub-check">تحقق هلق</button>`;
+  } else {
+    body = `${reason ? `<div class="note">«${esc(reason)}» للمشتركين. ${inTrial() ? "" : "خلصت التجربة المجانية."}</div>` : ""}
+      <ul style="margin:0;padding-inline-start:20px;line-height:1.9">${PREMIUM_FEATURES.map(f => `<li>${f}</li>`).join("")}</ul>
+      ${price ? `<div class="row between"><b>الاشتراك الشهري</b><b class="num" style="color:var(--herb);font-size:20px">${esc(price)} ${esc(SUB.config.currency)}</b></div>` : ""}
+      ${req && req.status === "rejected" ? `<div class="note" style="background:var(--tomato-soft)">طلبك السابق ما انقبل${req.why ? ": " + esc(req.why) : ""}. تأكد من الإيصال وابعت من جديد.</div>` : ""}
+      <b>١. ادفع بشام كاش على هالكود:</b>
+      <img src="pay-qr.jpg" alt="QR شام كاش" style="width:100%;max-width:300px;align-self:center;border-radius:14px">
+      <div class="row"><code style="direction:ltr;flex:1;font-size:13px;word-break:break-all">${SUB.wallet}</code><button class="chip" id="copy-w">نسخ</button></div>
+      <b>٢. ابعت صورة الإيصال:</b>
+      <label class="muted" for="s-name">اسمك</label><input id="s-name" type="text" value="${esc((req && req.name) || "")}">
+      <label class="muted" for="s-phone">رقم موبايلك (واتساب)</label><input id="s-phone" type="tel" dir="ltr" value="${esc((req && req.phone) || "")}">
+      <label class="btn ghost" for="s-rc" id="s-rc-l">📎 اختار صورة الإيصال</label><input id="s-rc" type="file" accept="image/*" hidden>
+      <img id="s-prev" alt="" style="display:none;max-height:180px;object-fit:contain;border-radius:12px">
+      <button class="btn" id="s-send">ابعت الطلب</button>`;
+  }
+  sheet(`<h2>${subState.active ? "اشتراكك" : "اشترك بحريره"}</h2>${body}
+    <details><summary class="muted" style="cursor:pointer">عندك كود تفعيل؟ / كود جهازك</summary>
+      <div class="stack" style="margin-top:8px"><small class="muted">كود جهازك: <code style="direction:ltr">${shortCode(id)}</code> <code style="direction:ltr;font-size:11px;display:block">${id}</code></small>
+      <input id="s-code" type="text" dir="ltr" placeholder="الصق كود التفعيل هون"><button class="btn ghost" id="s-apply">فعّل</button></div></details>`, el => {
+    const cw = $("#copy-w", el); if (cw) cw.onclick = () => navigator.clipboard.writeText(SUB.wallet).then(() => toast("انسخ"), () => toast(SUB.wallet));
+    let file = null;
+    const rc = $("#s-rc", el); if (rc) rc.onchange = () => { file = rc.files[0]; if (file) { const pv = $("#s-prev", el); pv.src = URL.createObjectURL(file); pv.style.display = "block"; $("#s-rc-l", el).textContent = "✓ تغيير الصورة"; } };
+    const send = $("#s-send", el);
+    if (send) send.onclick = async () => {
+      const name = $("#s-name", el).value.trim(), phone = $("#s-phone", el).value.trim();
+      if (!name || phone.replace(/\D/g, "").length < 8) return toast("اكتب اسمك ورقم موبايلك");
+      if (!file) return toast("اختار صورة الإيصال");
+      send.disabled = true; send.textContent = "عم ابعت…";
+      try { await sendSubRequest({ name, phone, plan: "m1", file }); toast("وصل طلبك! بيتفعّل أول ما ينقبل"); closeSheet(); render(); startPolling(); }
+      catch (e) { toast(e.message || "ما زبط، جرب كمان مرة"); send.disabled = false; send.textContent = "ابعت الطلب"; }
+    };
+    const chk = $("#sub-check", el); if (chk) chk.onclick = async () => { chk.disabled = true; const c = await pollActivation(); await refreshSub(); closeSheet(); render(); toast(c ? "انحدّث وضع اشتراكك" : "لسا ما في رد، بيوصلك لحاله"); };
+    $("#s-apply", el).onclick = async () => {
+      const r = await applyToken($("#s-code", el).value);
+      if (!r.ok) return toast("الكود مو صحيح أو مو لهالجهاز");
+      closeSheet(); render(); toast(r.rejected ? "انرفض الطلب" : "⭐ تفعّل اشتراكك");
+    };
+  });
+}
+let pollTimer = null;
+function startPolling() {
+  if (pollTimer) return;
+  const tick = async () => {
+    const before = subState.active;
+    if (await pollActivation()) { await refreshSub(); if (!before && subState.active) toast("⭐ تفعّل اشتراكك! شكراً"); render(); scheduleReminders(); }
+    const r = getReq(); if (!(r && r.status === "pending")) { clearInterval(pollTimer); pollTimer = null; }
+  };
+  tick(); pollTimer = setInterval(tick, 20000);
+}
+
+// ===== الرياضة =====
+const SPORTS = [["مشي عادي", 3.5], ["مشي سريع", 4.3], ["جري", 9.8], ["جري خفيف", 7], ["دراجة", 7.5], ["سباحة", 6], ["كرة قدم", 7], ["كرة سلة", 6.5], ["حديد / جيم", 5], ["تمارين HIIT", 8], ["نط حبل", 11], ["طلوع درج", 8], ["رقص", 5], ["يوغا / تمدد", 2.5], ["تمارين بالبيت", 4], ["ملاكمة", 9]];
+function exerciseCard() {
+  const l = (S.ex && S.ex[key(day)]) || [];
+  return `<div class="card"><div class="row between"><h2>الرياضة</h2><button class="chip" id="ex-add">+ تمرين</button></div>
+    ${l.length ? l.map((e, i) => `<div class="entry"><div class="t"><b>${esc(e.n)}</b><small class="muted num">${fmt(e.min)} دقيقة</small></div><span class="k num" style="color:var(--herb)">−${fmt(e.k)}</span><button class="del" data-exdel="${i}" aria-label="احذف">×</button></div>`).join("")
+      : `<small class="muted">سجّل تمرينك، والسعرات المحروقة بتنضاف لميزانية يومك.</small>`}</div>`;
+}
+function exerciseSheet() {
+  const kg = latestWeight() || (S.profile && S.profile.w) || 70;
+  sheet(`<h2>تمرين جديد</h2>
+    <label class="muted" for="ex-t">النشاط</label><select id="ex-t">${SPORTS.map((x, i) => `<option value="${i}">${x[0]}</option>`).join("")}</select>
+    <label class="muted" for="ex-m">المدة بالدقايق</label><input id="ex-m" type="number" inputmode="numeric" value="30">
+    <div class="quick">${[15, 30, 45, 60, 90].map(v => `<button class="chip" data-m="${v}">${fmt(v)} د</button>`).join("")}</div>
+    <div class="note" id="ex-r"></div>
+    <small class="muted">الحساب حسب وزنك (${fmt1(kg)} كغ). سجّل وزنك لتكون الأرقام أدق.</small>
+    <button class="btn" id="ex-save">أضف</button>`, el => {
+    const calcK = () => r0(SPORTS[+$("#ex-t", el).value][1] * kg * (+$("#ex-m", el).value || 0) / 60);
+    const upd = () => { $("#ex-r", el).innerHTML = `بتحرق تقريباً <b class="num">${fmt(calcK())}</b> سعرة`; };
+    $("#ex-t", el).oninput = upd; $("#ex-m", el).oninput = upd;
+    el.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { $("#ex-m", el).value = b.dataset.m; upd(); });
+    $("#ex-save", el).onclick = () => {
+      const min = +$("#ex-m", el).value; if (!(min > 0 && min <= 600)) return toast("اكتب المدة بالدقايق");
+      const k = key(day); S.ex = S.ex || {}; (S.ex[k] = S.ex[k] || []).push({ n: SPORTS[+$("#ex-t", el).value][0], min, k: calcK() });
+      save(); closeSheet(); render(); toast("انضاف التمرين 💪");
+    };
+    upd();
+  });
+}
+
+// ===== النصيحة اليومية =====
+function tipCard() {
+  const t = tipOfDay(day);
+  return `<div class="note" style="display:flex;gap:10px;align-items:flex-start"><span aria-hidden="true">💡</span><span>${esc(LANG === "en" ? t[1] : t[0])}</span></div>`;
+}
+
+// ===== التذكيرات (بتشتغل بتطبيق الأندرويد حتى لو كان مسكّر) =====
+const REM_DEFAULT = { water: { on: true, every: 2, from: 9, to: 22 }, meals: { on: true, times: ["09:00", "14:00", "20:00"] }, weight: { on: false, time: "08:00" }, tip: { on: true, time: "11:00" } };
+const canNotify = () => !!(window.AndroidApp && AndroidApp.setReminders);
+function scheduleReminders() {
+  if (!canNotify()) return;
+  const R = Object.assign({}, REM_DEFAULT, S.rem || {});
+  const list = [];
+  if (isPremium() && S.remOn) {
+    const now = Date.now(), en = LANG === "en";
+    const at = (d, hm) => { const [h, m] = hm.split(":").map(Number); const x = new Date(d); x.setHours(h, m || 0, 0, 0); return x.getTime(); };
+    for (let i = 0; i < 10; i++) {
+      const d = new Date(); d.setDate(d.getDate() + i);
+      const ds = key(d);
+      if (R.water.on) for (let h = R.water.from; h <= R.water.to; h += R.water.every) list.push({ id: "w" + ds + h, at: at(d, h + ":00"), title: en ? "Time for water 💧" : "وقت المي 💧", body: en ? "Drink a glass of water and log it in Harira." : "اشرب كاسة مي وسجّلها بحريره." });
+      if (R.meals.on) R.meals.times.forEach((t, j) => list.push({ id: "m" + ds + j, at: at(d, t), title: en ? "Log your meal 🍽️" : "سجّل وجبتك 🍽️", body: en ? "Snap your plate or add what you ate." : "صوّر صحنك أو أضف شو أكلت." }));
+      if (R.weight.on) list.push({ id: "k" + ds, at: at(d, R.weight.time), title: en ? "Weigh-in ⚖️" : "وقت الوزن ⚖️", body: en ? "Log today's weight." : "سجّل وزنك اليوم." });
+      if (R.tip.on) { const t = tipOfDay(d); list.push({ id: "t" + ds, at: at(d, R.tip.time), title: en ? "Tip of the day 💡" : "نصيحة اليوم 💡", body: en ? t[1] : t[0] }); }
+    }
+    for (let i = list.length - 1; i >= 0; i--) if (list[i].at <= now) list.splice(i, 1);
+  }
+  try { AndroidApp.setReminders(JSON.stringify(list)); } catch (e) {}
+}
+function remindersSheet() {
+  const R = JSON.parse(JSON.stringify(Object.assign({}, REM_DEFAULT, S.rem || {})));
+  const tsel = (id, v) => `<input id="${id}" type="time" value="${v}" style="max-width:130px">`;
+  sheet(`<h2>التذكيرات</h2>
+    ${canNotify() ? "" : `<div class="note">التذكيرات بتشتغل بتطبيق حريره على الأندرويد. نزّل التطبيق لتوصلك.</div>`}
+    <label class="row between"><b>شغّل التذكيرات</b><input id="r-on" type="checkbox" ${S.remOn ? "checked" : ""} style="width:22px;height:22px"></label>
+    <label class="row between"><span>💧 المي كل</span><select id="r-we" style="max-width:120px">${[1, 2, 3].map(v => `<option value="${v}" ${v === R.water.every ? "selected" : ""}>${fmt(v)} ساعة</option>`).join("")}</select><input id="r-w" type="checkbox" ${R.water.on ? "checked" : ""} style="width:22px;height:22px"></label>
+    <div class="row"><span class="muted">من</span><select id="r-wf" style="max-width:110px">${[6, 7, 8, 9, 10].map(v => `<option value="${v}" ${v === R.water.from ? "selected" : ""}>${fmt(v)}:٠٠</option>`).join("")}</select>
+      <span class="muted">لـ</span><select id="r-wt" style="max-width:110px">${[20, 21, 22, 23].map(v => `<option value="${v}" ${v === R.water.to ? "selected" : ""}>${fmt(v)}:٠٠</option>`).join("")}</select></div>
+    <label class="row between"><span>🍽️ الوجبات</span><input id="r-m" type="checkbox" ${R.meals.on ? "checked" : ""} style="width:22px;height:22px"></label>
+    <div class="row">${R.meals.times.map((t, i) => tsel("r-mt" + i, t)).join("")}</div>
+    <label class="row between"><span>⚖️ الوزن</span>${tsel("r-kt", R.weight.time)}<input id="r-k" type="checkbox" ${R.weight.on ? "checked" : ""} style="width:22px;height:22px"></label>
+    <label class="row between"><span>💡 نصيحة اليوم</span>${tsel("r-tt", R.tip.time)}<input id="r-t" type="checkbox" ${R.tip.on ? "checked" : ""} style="width:22px;height:22px"></label>
+    <button class="btn" id="r-save">احفظ</button>`, el => {
+    $("#r-save", el).onclick = () => {
+      R.water = { on: $("#r-w", el).checked, every: +$("#r-we", el).value, from: +$("#r-wf", el).value, to: +$("#r-wt", el).value };
+      R.meals = { on: $("#r-m", el).checked, times: R.meals.times.map((_, i) => $("#r-mt" + i, el).value || REM_DEFAULT.meals.times[i]) };
+      R.weight = { on: $("#r-k", el).checked, time: $("#r-kt", el).value || "08:00" };
+      R.tip = { on: $("#r-t", el).checked, time: $("#r-tt", el).value || "11:00" };
+      S.rem = R; S.remOn = $("#r-on", el).checked; save();
+      if (S.remOn && window.AndroidApp && AndroidApp.askNotifications) try { AndroidApp.askNotifications(); } catch (e) {}
+      scheduleReminders(); closeSheet(); toast(S.remOn ? "🔔 انضبطت التذكيرات" : "انطفت التذكيرات");
+    };
+  });
 }
 
 // ===== المي والوزن =====
@@ -343,6 +508,7 @@ function renderAdd() {
   </div>`;
   const lx = $("#learn-x"); if (lx) lx.onclick = () => { learnCtx = null; renderAdd(); };
   $("#new-food").onclick = () => customSheet();
+  $("#bc-in").onclick = e => { if (!requirePremium("مسح الباركود")) e.preventDefault(); };
   $("#bc-in").onchange = e => e.target.files[0] && scanBarcode(e.target.files[0]);
   app.querySelectorAll("[data-quick]").forEach(b => b.onclick = () => { const [n, g] = b.dataset.quick.split("|"); const f = FOODS.find(x => x.n === n); if (f) qtySheet(f, null, +g || f.ug); });
   const q = $("#q");
@@ -491,7 +657,7 @@ function renderPhoto() {
   }
   app.innerHTML = `<div class="head"><h1>من صورة</h1><span class="muted">${dayLabel()}</span></div><div class="stack">${body}</div>`;
 
-  ["cam", "gal"].forEach(id => { const el = $("#" + id); if (el) el.onchange = () => el.files[0] && analyze(el.files[0]); });
+  ["cam", "gal"].forEach(id => { const el = $("#" + id); if (el) { el.onclick = e => { if (!requirePremium("تحليل الصحن بالصورة")) e.preventDefault(); }; el.onchange = () => el.files[0] && analyze(el.files[0]); } });
   const again = $("#again"); if (again) again.onclick = () => { photo = null; renderPhoto(); };
   const retry = $("#retry"); if (retry) retry.onclick = () => analyze(p.file);
   const cloud = $("#cloud"); if (cloud) cloud.onclick = () => cloudAnalyze();
@@ -734,13 +900,34 @@ function go(t, fromPop) {
 document.querySelectorAll(".tab").forEach(b => b.onclick = () => { learnCtx = null; go(b.dataset.tab); });
 // صورة رجعت من الكاميرا بعد ما النظام سكّر التطبيق بالخلفية (من غلاف أندرويد)
 window.hariraReceivePhoto = async dataUrl => {
+  if (!isPremium()) { go("today"); return subSheet("تحليل الصحن بالصورة"); }
   try {
     const blob = await (await fetch(dataUrl)).blob();
     const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
     go("photo"); analyze(file);
   } catch (e) { toast("ما قدرت افتح الصورة، جرب مرة تانية"); }
 };
-function render() { ({ today: renderToday, add: renderAdd, photo: renderPhoto })[tab](); }
+function render() {
+  const locked = !isPremium();
+  document.querySelector("nav.tabs").hidden = locked;
+  if (locked) return renderLocked();
+  ({ today: renderToday, add: renderAdd, photo: renderPhoto })[tab]();
+}
+// بعد ٣ أيام التجربة: كل التطبيق بيحتاج اشتراك
+function renderLocked() {
+  const req = getReq(), pending = req && req.status === "pending";
+  app.innerHTML = `<div class="head"><h1>حريره</h1><button class="chip" id="lang">${LANG === "en" ? "ع" : "EN"}</button></div>
+  <div class="card empty stack" style="align-items:center">
+    <img src="icon-192.png" alt="" width="84" height="84" style="border-radius:22px">
+    <h2>${pending ? "طلبك عم ينراجع ⏳" : "خلصت التجربة المجانية"}</h2>
+    <p class="muted" style="margin:0">${pending ? "أول ما ينقبل الإيصال بيتفعّل التطبيق لحاله. خلّي التطبيق مفتوح أو ارجعله بعد شوي." : "اشترك بـ " + esc(SUB.config.price || "500") + " " + esc(SUB.config.currency) + " بالشهر وكمّل مع كل الميزات."}</p>
+    <ul style="margin:0;padding-inline-start:20px;line-height:1.9;text-align:start">${PREMIUM_FEATURES.map(f => `<li>${f}</li>`).join("")}</ul>
+    <button class="btn" id="lock-sub" style="width:100%">${pending ? "تحقق من الطلب" : "اشترك هلق"}</button>
+  </div>`;
+  $("#lang").onclick = () => setLang(LANG === "en" ? "ar" : "en");
+  $("#lock-sub").onclick = () => subSheet();
+}
 render();
+refreshSub().then(() => { render(); scheduleReminders(); const r = getReq(); if (r && r.status === "pending") { startPolling(); resendIfStale(); } else pollActivation().then(c => { if (c) refreshSub().then(render); }); });
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

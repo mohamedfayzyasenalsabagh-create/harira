@@ -1,6 +1,10 @@
 package com.harira.app;
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.pm.PackageManager;
+import android.provider.Settings;
+import android.webkit.JavascriptInterface;
 import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
 import android.content.Intent;
@@ -64,7 +68,7 @@ public class MainActivity extends Activity {
         s.setDatabaseEnabled(true);
         s.setAllowFileAccess(false);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
-        s.setUserAgentString(s.getUserAgentString() + " HariraApp/2");
+        s.setUserAgentString(s.getUserAgentString() + " HariraApp/3");
 
         // ملفات محلل الصور (موديل الأكل) مخزنة جوّا التطبيق: ما بتنزل من النت أبداً
         if (Build.VERSION.SDK_INT >= 24) {
@@ -99,6 +103,7 @@ public class MainActivity extends Activity {
             }
         });
 
+        web.addJavascriptInterface(new Bridge(), "AndroidApp");
         web.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
@@ -186,6 +191,19 @@ public class MainActivity extends Activity {
             return;
         }
         super.onActivityResult(req, res, data);
+    }
+
+    // جسر بين الصفحة والموبايل: كود الجهاز، التذكيرات، وإذن الإشعارات
+    class Bridge {
+        @JavascriptInterface public String deviceId() {
+            String a = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+            return a == null ? "" : a.toLowerCase();
+        }
+        @JavascriptInterface public void setReminders(String json) { Reminders.setAll(MainActivity.this, json); }
+        @JavascriptInterface public void askNotifications() {
+            if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+                runOnUiThread(() -> requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 9));
+        }
     }
 
     @Override
