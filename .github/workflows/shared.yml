@@ -19,7 +19,7 @@ jobs:
       - name: حفظ
         run: |
           git config user.name "harira-bot"; git config user.email "bot@harira.app"
-          git add web/ml/shared.json tools/ntfy_since.txt
+          git add web/ml/shared.json tools/ntfy_since.txt 2>/dev/null || git add web/ml/shared.json
           git diff --cached --quiet || (git commit -qm "تعلّم مشترك: $(cat out.txt)" && git push)
       - name: نشر الموقع
         if: steps.c.outputs.changed == 'true'
