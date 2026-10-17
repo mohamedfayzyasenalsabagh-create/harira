@@ -976,4 +976,17 @@ function renderLocked() {
 render();
 refreshSub().then(() => { render(); scheduleReminders(); const r = getReq(); if (r && r.status === "pending") { startPolling(); resendIfStale(); } else pollActivation().then(c => { if (c) refreshSub().then(render); }); });
 
+// تحديث تلقائي: إذا نزل تعديل جديد والتطبيق مفتوح بالخلفية، منعيد تحميله أول ما يرجع المستخدم عليه
+let loadedVersion = null;
+async function checkVersion() {
+  try {
+    const v = (await (await fetch("version.txt", { cache: "no-cache" })).text()).trim();
+    if (!loadedVersion) loadedVersion = v;
+    else if (v && v !== loadedVersion && !document.querySelector(".sheet-bg")) location.reload();
+  } catch (e) {}
+}
+checkVersion();
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkVersion(); });
+setInterval(checkVersion, 15 * 60 * 1000);
+
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

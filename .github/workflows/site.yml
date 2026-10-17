@@ -13,7 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: رقم النسخة للكاش
-        run: sed -i "s/harira-v[0-9a-z]*/harira-${GITHUB_SHA::7}/" web/sw.js
+        run: |
+          sed -i "s/harira-v[0-9a-z]*/harira-${GITHUB_SHA::7}/" web/sw.js
+          echo "${GITHUB_SHA::7}" > web/version.txt
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

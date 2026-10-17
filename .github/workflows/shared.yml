@@ -23,7 +23,9 @@ jobs:
           git diff --cached --quiet || (git commit -qm "تعلّم مشترك وتفعيلات: $(cat out.txt | tr '\n' ' ')" && git push)
       - name: نشر الموقع
         if: steps.c.outputs.changed == 'true'
-        run: sed -i "s/harira-v[0-9a-z]*/harira-${GITHUB_SHA::7}s/" web/sw.js
+        run: |
+          sed -i "s/harira-v[0-9a-z]*/harira-${GITHUB_SHA::7}s/" web/sw.js
+          echo "${GITHUB_SHA::7}s" > web/version.txt
       - uses: peaceiris/actions-gh-pages@v4
         if: steps.c.outputs.changed == 'true'
         with:

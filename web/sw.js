@@ -19,7 +19,7 @@ self.addEventListener("fetch", e => {
   }
   // الشبكة أولاً لملفات التطبيق حتى توصل التحديثات فوراً، والمحفوظ إذا ما في نت
   e.respondWith(
-    fetch(r).then(res => {
+    fetch(r, { cache: "no-cache" }).then(res => {
       if (res.ok || res.type === "opaque") { const copy = res.clone(); caches.open(CACHE).then(c => c.put(r, copy)); }
       return res;
     }).catch(() => caches.match(r).then(m => m || caches.match("index.html")))
