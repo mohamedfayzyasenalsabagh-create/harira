@@ -19,7 +19,8 @@ jobs:
         env:
           VERSION_CODE: "${{ github.run_number }}"
         run: |
-          gradle -p android assembleRelease --no-daemon
+          set -o pipefail
+          gradle -p android assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
           cp android/app/build/outputs/apk/release/app-release.apk harira.apk
       - uses: softprops/action-gh-release@v2
         with:
@@ -28,3 +29,10 @@ jobs:
           make_latest: "true"
           files: harira.apk
           body: "نزّل harira.apk وثبّته على الموبايل. التحديثات على المحتوى بتوصل لحالها بدون تنزيل نسخة جديدة."
+      - name: حفظ سجل البناء عند الفشل
+        if: failure()
+        run: |
+          git config --global user.name "harira-ci"; git config --global user.email "ci@harira.app"
+          mkdir -p /tmp/l && cp build.log /tmp/l/ 2>/dev/null || echo none > /tmp/l/build.log
+          cd /tmp/l && git init -q -b ci-logs && git add -A && git commit -qm log
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-logs
