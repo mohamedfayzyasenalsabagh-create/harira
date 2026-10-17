@@ -2,6 +2,7 @@
 import fs from "node:fs";
 const src = fs.readFileSync("web/app.js", "utf8");
 const pick = (start, end) => src.slice(src.indexOf(start), src.indexOf(end));
+globalThis.HARIRA_DEBUG = !!process.env.HARIRA_DEBUG;
 globalThis.localStorage = { getItem: () => null, setItem: () => {} };
 const code = pick("const ORK", "const MEALS") + pick("// الموديلات المجانية", "// تصغير الصورة") + "\nexport { askVision, visionModels };";
 fs.writeFileSync("/tmp/v.mjs", code.replace(/^const MEALS[\s\S]*$/m, ""));

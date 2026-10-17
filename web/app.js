@@ -282,7 +282,7 @@ async function visionModels() {
   try {
     const r = await fetch(OR + "/models");
     const j = await r.json();
-    list = (j.data || []).filter(m => /:free$/.test(m.id) && ((m.architecture && m.architecture.input_modalities) || []).includes("image")).map(m => m.id);
+    list = (j.data || []).filter(m => /:free$/.test(m.id) && ((m.architecture && m.architecture.input_modalities) || []).includes("image") && !/safety|guard|embed/i.test(m.id)).map(m => m.id);
     const rank = id => { const i = pref.findIndex(p => id.toLowerCase().includes(p)); return i < 0 ? 99 : i; };
     list.sort((a, b) => rank(a) - rank(b));
   } catch (e) {}
@@ -315,6 +315,7 @@ async function askVision(dataUrl) {
         if (msg.includes("per-day") || msg.includes("per day") || msg.includes("free-models-per-day")) { last = "خلص حد التحليل المجاني لليوم. جرب بكرا، أو اختار الأكلة يدوياً."; break; }
         last = "الخدمة مزحومة هلق. جرب بعد شوي."; continue;
       }
+      if (globalThis.HARIRA_DEBUG) console.log(model, r.status, JSON.stringify(j).slice(0, 300));
       if (!r.ok) continue;
       const text = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
       return parseJSON(Array.isArray(text) ? text.map(x => x.text || "").join("") : text);

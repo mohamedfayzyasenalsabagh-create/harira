@@ -15,9 +15,9 @@ jobs:
         with: { node-version: "20" }
       - run: |
           mkdir -p /tmp/r
-          curl -sL -A "Mozilla/5.0 (harira test; github actions)" -o /tmp/food.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Eq_it-na_pizza-margherita_sep2005_sml.jpg/640px-Eq_it-na_pizza-margherita_sep2005_sml.jpg"
+          for u in "https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=640" "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=640" "https://picsum.photos/id/292/640/480"; do curl -sL -A "Mozilla/5.0" -o /tmp/food.jpg "$u"; file /tmp/food.jpg | grep -q JPEG && break; done
           file /tmp/food.jpg | tee /tmp/r/vision.txt
-          node tests/vision.mjs /tmp/food.jpg 2>&1 | tee -a /tmp/r/vision.txt
+          HARIRA_DEBUG=1 node tests/vision.mjs /tmp/food.jpg 2>&1 | tee -a /tmp/r/vision.txt
       - if: always()
         run: |
           cd /tmp/r && git init -q -b ci-vision && git add -A && git -c user.name=ci -c user.email=ci@x commit -qm r && git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-vision
