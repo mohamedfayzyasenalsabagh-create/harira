@@ -307,7 +307,9 @@ async function askVision(dataUrl) {
         body: JSON.stringify({ model, temperature: 0.2, max_tokens: 4000, reasoning: { effort: "low", exclude: true },
           messages: [{ role: "user", content: [{ type: "text", text: AI_PROMPT }, { type: "image_url", image_url: { url: dataUrl } }] }] })
       });
-      const j = await r.json().catch(() => ({}));
+      const raw = await r.text();
+      let j = {};
+      try { j = JSON.parse(raw.split("\n").filter(l => !l.startsWith(":")).join("\n").trim() || "{}"); } catch (e) { if (globalThis.HARIRA_DEBUG) console.log(model, "RAW", raw.slice(0, 400)); }
       if (r.status === 401 || r.status === 403) { last = "في مشكلة بمفتاح خدمة الصور. خبّر صاحب التطبيق."; if (r.status === 401) break; continue; }
       if (r.status === 402) { last = "خلص رصيد خدمة الصور. خبّر صاحب التطبيق."; break; }
       if (r.status === 429) {
