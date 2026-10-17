@@ -95,9 +95,11 @@ function renderWorkouts() {
     <div class="prog-list">${PROGRAMS.map(p => `<button class="prog-card ${S.activeProg === p.id ? "on" : ""}" data-prog="${p.id}">
       <span class="prog-ic">${p.icon}</span><span class="t"><b>${p.name}</b><small>${p.tag} · ${p.level} · ${fmt(p.perWeek)} أيام/أسبوع · ${fmt(p.weeks)} أسابيع</small></span><span class="muted">${LANG === "en" ? "›" : "‹"}</span></button>`).join("")}</div>
     <h2 style="margin-top:6px">مكتبة التمارين</h2>
-    <div class="card foods">${Object.entries(EXS).map(([id, e]) => `<button class="food" data-ex="${id}"><span class="t">${e[0]}<small>${e[1]}</small></span><span class="muted">${LANG === "en" ? "›" : "‹"}</span></button>`).join("")}</div>
+    <div class="card foods">${Object.entries(EXS).slice(0, S.exAll ? 99 : 6).map(([id, e]) => `<button class="food" data-ex="${id}"><span class="t">${e[0]}<small>${e[1]}</small></span><span class="muted">${LANG === "en" ? "›" : "‹"}</span></button>`).join("")}
+      <button class="btn ghost" id="ex-all" style="margin-top:8px">${S.exAll ? "عرض أقل" : "عرض كل التمارين (" + fmt(Object.keys(EXS).length) + ")"}</button></div>
   </div>`;
   $("#wo-log").onclick = () => exerciseSheet();
+  $("#ex-all").onclick = () => { S.exAll = !S.exAll; save(); render(); };
   const s = $("#wo-start"); if (s) s.onclick = () => startPlayer(ap, di);
   const v = $("#wo-view"); if (v) v.onclick = () => programSheet(ap.id);
   app.querySelectorAll("[data-prog]").forEach(b => b.onclick = () => programSheet(b.dataset.prog));
