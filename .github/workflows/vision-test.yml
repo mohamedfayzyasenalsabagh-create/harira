@@ -1,0 +1,23 @@
+name: تجربة تحليل الصور
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["tests/vision.mjs", ".github/workflows/vision-test.yml", "web/app.js"]
+permissions:
+  contents: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: |
+          mkdir -p /tmp/r
+          curl -sL -A "Mozilla/5.0 (harira test; github actions)" -o /tmp/food.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Eq_it-na_pizza-margherita_sep2005_sml.jpg/640px-Eq_it-na_pizza-margherita_sep2005_sml.jpg"
+          file /tmp/food.jpg | tee /tmp/r/vision.txt
+          node tests/vision.mjs /tmp/food.jpg 2>&1 | tee -a /tmp/r/vision.txt
+      - if: always()
+        run: |
+          cd /tmp/r && git init -q -b ci-vision && git add -A && git -c user.name=ci -c user.email=ci@x commit -qm r && git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-vision

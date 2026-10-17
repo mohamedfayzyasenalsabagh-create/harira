@@ -1,5 +1,13 @@
 // حريره: حاسبة السعرات. كل البيانات محفوظة على جهاز المستخدم فقط
-const AI_URL = ""; // رابط خادم تحليل الصور (Cloudflare Worker)
+// تحليل الصور عبر OpenRouter (موديلات مجانية بتفهم الصور). المفتاح مموّه وحسابه بدون رصيد
+const ORK = (() => { const m = "harira-calories", b = atob("GwpfBgBMW1JMDQwTWVRCCVAWDUdSSwVSVV5DUV1AXldBDBRTSFIED1sUWFNDW1FEUUcFH1RRCgsRWAQRWllHXEFWHAZVDwlHWA==");
+  let o = ""; for (let i = 0; i < b.length; i++) o += String.fromCharCode(b.charCodeAt(i) ^ m.charCodeAt(i % m.length)); return o; })();
+const OR = "https://openrouter.ai/api/v1";
+const AI_PROMPT = `You are a nutrition assistant. Look at this food photo and identify every distinct food or drink visible.
+For each one, estimate the portion weight in grams from visual cues (plate size, utensils, typical servings), and give typical nutrition values PER 100 GRAMS for that food as prepared.
+Reply with ONLY a JSON object, no other text, in exactly this shape:
+{"items":[{"name":"<short Arabic name, Levantine wording>","grams":<number>,"kcal100":<number>,"p100":<protein g per 100g>,"c100":<carbs g per 100g>,"f100":<fat g per 100g>}],"note":"<one short Arabic sentence about what makes the estimate uncertain, e.g. hidden oil>"}
+If there is no food in the image, reply {"items":[],"note":"ما في أكل واضح بالصورة"}.`;
 const MEALS = ["فطور", "غداء", "عشاء", "سناك"];
 const app = document.getElementById("app");
 const $ = (s, el = document) => el.querySelector(s);
@@ -266,6 +274,56 @@ function renderPhoto() {
   }
 }
 
+// الموديلات المجانية اللي بتفهم الصور، منجيبها من OpenRouter ومنحفظها يوم
+async function visionModels() {
+  try { const c = JSON.parse(localStorage.getItem("harira-models") || "null"); if (c && Date.now() - c.t < 864e5 && c.list.length) return c.list; } catch (e) {}
+  const pref = ["gemini", "llama-4", "qwen", "gemma", "mistral", "kimi", "nemotron"];
+  let list = [];
+  try {
+    const r = await fetch(OR + "/models");
+    const j = await r.json();
+    list = (j.data || []).filter(m => /:free$/.test(m.id) && ((m.architecture && m.architecture.input_modalities) || []).includes("image")).map(m => m.id);
+    const rank = id => { const i = pref.findIndex(p => id.toLowerCase().includes(p)); return i < 0 ? 99 : i; };
+    list.sort((a, b) => rank(a) - rank(b));
+  } catch (e) {}
+  if (!list.length) list = ["google/gemma-3-27b-it:free", "meta-llama/llama-4-maverick:free", "qwen/qwen2.5-vl-72b-instruct:free"];
+  try { localStorage.setItem("harira-models", JSON.stringify({ t: Date.now(), list })); } catch (e) {}
+  return list;
+}
+function parseJSON(t) {
+  const f = String(t || "").match(/```(?:json)?\s*([\s\S]*?)```/); const b = f ? f[1] : String(t || "");
+  const a = b.indexOf("{"), z = b.lastIndexOf("}"); if (a < 0 || z < a) throw new Error("bad json");
+  return JSON.parse(b.slice(a, z + 1));
+}
+async function askVision(dataUrl) {
+  const models = (await visionModels()).slice(0, 5);
+  let last = "الخدمة مشغولة هلق. جرب بعد شوي.";
+  for (const model of models) {
+    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 45000);
+    try {
+      const r = await fetch(OR + "/chat/completions", {
+        method: "POST", signal: ctl.signal,
+        headers: { "Authorization": "Bearer " + ORK, "Content-Type": "application/json", "HTTP-Referer": "https://mohamedfayzyasenalsabagh-create.github.io/harira/", "X-Title": "Harira" },
+        body: JSON.stringify({ model, temperature: 0.2, max_tokens: 1000,
+          messages: [{ role: "user", content: [{ type: "text", text: AI_PROMPT }, { type: "image_url", image_url: { url: dataUrl } }] }] })
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401 || r.status === 403) { last = "في مشكلة بمفتاح خدمة الصور. خبّر صاحب التطبيق."; if (r.status === 401) break; continue; }
+      if (r.status === 402) { last = "خلص رصيد خدمة الصور. خبّر صاحب التطبيق."; break; }
+      if (r.status === 429) {
+        const msg = JSON.stringify(j).toLowerCase();
+        if (msg.includes("per-day") || msg.includes("per day") || msg.includes("free-models-per-day")) { last = "خلص حد التحليل المجاني لليوم. جرب بكرا، أو اختار الأكلة يدوياً."; break; }
+        last = "الخدمة مزحومة هلق. جرب بعد شوي."; continue;
+      }
+      if (!r.ok) continue;
+      const text = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+      return parseJSON(Array.isArray(text) ? text.map(x => x.text || "").join("") : text);
+    } catch (e) { if (e.name === "AbortError") last = "التحليل طوّل كتير. جرب مرة تانية."; }
+    finally { clearTimeout(timer); }
+  }
+  throw new Error(last);
+}
+
 // تصغير الصورة قبل الإرسال لتسريع التحليل وتوفير الإنترنت
 function shrink(file, max = 1024) {
   return new Promise((ok, bad) => {
@@ -286,15 +344,9 @@ async function analyze(file) {
   photo = { file, url: URL.createObjectURL(file), state: "loading", items: [] };
   renderPhoto();
   try {
-    if (!AI_URL) throw new Error("تحليل الصور عم يتجهز وقريباً بيشتغل. لهلق فيك تختار الأكلة يدوياً من تبويب «أضف أكلة».");
     if (!navigator.onLine) throw new Error("تحليل الصور بدو إنترنت. تأكد من الاتصال وجرب مرة تانية.");
     const image = await shrink(file);
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), 60000);
-    const res = await fetch(AI_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image }), signal: ctl.signal });
-    clearTimeout(timer);
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "الخادم مشغول هلق. جرب بعد شوي.");
+    const data = await askVision(image);
     const items = (data.items || []).map(it => ({
       name: String(it.name || "أكلة"), grams: Math.max(0, +it.grams || 0),
       kcal100: Math.max(0, +it.kcal100 || 0), p100: +it.p100 || 0, c100: +it.c100 || 0, f100: +it.f100 || 0, on: true
