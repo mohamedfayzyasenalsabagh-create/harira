@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["tests/vision.mjs", ".github/workflows/vision-test.yml", "web/app.js"]
+    paths: ["tests/vision.mjs"]
 permissions:
   contents: write
 jobs:

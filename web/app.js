@@ -276,18 +276,22 @@ function renderPhoto() {
 
 // الموديلات المجانية اللي بتفهم الصور، منجيبها من OpenRouter ومنحفظها يوم
 async function visionModels() {
-  try { const c = JSON.parse(localStorage.getItem("harira-models") || "null"); if (c && Date.now() - c.t < 864e5 && c.list.length) return c.list; } catch (e) {}
-  const pref = ["gemini", "llama-4", "qwen", "gemma", "mistral", "kimi", "nemotron"];
-  let list = [];
+  try { const c = JSON.parse(localStorage.getItem("harira-models2") || "null"); if (c && Date.now() - c.t < 864e5 && c.list.length) return c.list; } catch (e) {}
+  const pref = ["gemma", "llama-4", "qwen", "mistral", "gemini", "kimi", "nemotron"];
+  let list = [], paid = [];
   try {
     const r = await fetch(OR + "/models");
-    const j = await r.json();
-    list = (j.data || []).filter(m => /:free$/.test(m.id) && ((m.architecture && m.architecture.input_modalities) || []).includes("image") && !/safety|guard|embed/i.test(m.id)).map(m => m.id);
+    const all = ((await r.json()).data || []).filter(m => ((m.architecture && m.architecture.input_modalities) || []).includes("image") && !/safety|guard|embed/i.test(m.id));
+    // الموديل الأساسي: أحدث Gemini Flash (سريع ودقيق ورخيص جداً، بيشتغل إذا الحساب فيه رصيد)
+    const ver = id => parseFloat((id.match(/gemini-([\d.]+)/) || [])[1] || 0);
+    paid = all.map(m => m.id).filter(id => /^google\/gemini-[\d.]+-flash(-preview)?$/.test(id)).sort((x, y) => ver(y) - ver(x)).slice(0, 1);
+    list = all.map(m => m.id).filter(id => /:free$/.test(id));
     const rank = id => { const i = pref.findIndex(p => id.toLowerCase().includes(p)); return i < 0 ? 99 : i; };
-    list.sort((a, b) => rank(a) - rank(b));
+    list.sort((x, y) => rank(x) - rank(y));
   } catch (e) {}
-  if (!list.length) list = ["google/gemma-3-27b-it:free", "meta-llama/llama-4-maverick:free", "qwen/qwen2.5-vl-72b-instruct:free"];
-  try { localStorage.setItem("harira-models", JSON.stringify({ t: Date.now(), list })); } catch (e) {}
+  if (!paid.length) paid = ["google/gemini-2.5-flash"];
+  list = [...paid, ...list];
+  try { localStorage.setItem("harira-models2", JSON.stringify({ t: Date.now(), list })); } catch (e) {}
   return list;
 }
 function parseJSON(t) {
@@ -296,10 +300,10 @@ function parseJSON(t) {
   return JSON.parse(b.slice(a, z + 1));
 }
 async function askVision(dataUrl) {
-  const models = (await visionModels()).slice(0, 5);
+  const models = (await visionModels()).slice(0, 4);
   let last = "الخدمة مشغولة هلق. جرب بعد شوي.";
   for (const model of models) {
-    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 45000);
+    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), model.endsWith(":free") ? 30000 : 60000);
     try {
       const r = await fetch(OR + "/chat/completions", {
         method: "POST", signal: ctl.signal,
@@ -311,7 +315,7 @@ async function askVision(dataUrl) {
       let j = {};
       try { j = JSON.parse(raw.split("\n").filter(l => !l.startsWith(":")).join("\n").trim() || "{}"); } catch (e) { if (globalThis.HARIRA_DEBUG) console.log(model, "RAW", raw.slice(0, 400)); }
       if (r.status === 401 || r.status === 403) { last = "في مشكلة بمفتاح خدمة الصور. خبّر صاحب التطبيق."; if (r.status === 401) break; continue; }
-      if (r.status === 402) { last = "خلص رصيد خدمة الصور. خبّر صاحب التطبيق."; break; }
+      if (r.status === 402) { if (!model.endsWith(":free")) continue; last = "خلص رصيد خدمة الصور. خبّر صاحب التطبيق."; break; }
       if (r.status === 429) {
         const msg = JSON.stringify(j).toLowerCase();
         if (msg.includes("per-day") || msg.includes("per day") || msg.includes("free-models-per-day")) { last = "خلص حد التحليل المجاني لليوم. جرب بكرا، أو اختار الأكلة يدوياً."; break; }
