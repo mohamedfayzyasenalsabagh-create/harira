@@ -134,6 +134,7 @@ function renderToday() {
     ${exerciseCard()}
     ${weekCard()}
     ${isPremium() ? weightCard() : ""}
+    ${supportBox()}
   </div>`;
 
   $("#prev").onclick = () => { day.setDate(day.getDate() - 1); render(); };
@@ -236,6 +237,14 @@ function updateBanner() {
     <span class="row" style="gap:6px"><a class="chip" href="${APK_URL}" style="text-decoration:none;color:inherit">نزّلها</a><button class="chip" id="upd-x">لاحقاً</button></span></div>`;
 }
 
+// ===== الدعم =====
+function supportBox() {
+  const n = SUB.config.whatsapp; if (!n) return "";
+  const intl = "963" + n.replace(/\D/g, "").replace(/^0/, "");
+  return `<div class="note row between" style="gap:8px"><span>للدعم أو أي مشكلة: <b class="num" dir="ltr">${esc(n)}</b></span>
+    <a class="chip" href="https://wa.me/${intl}" style="text-decoration:none;color:inherit">واتساب</a></div>`;
+}
+
 // ===== الاشتراك =====
 const PREMIUM_FEATURES = ["📸 تحليل الصحن بالصورة مع السعرات", "🍽️ تسجيل الأكل وأكتر من ٢٥٠ أكلة", "🔎 مسح الباركود", "🏋️ الرياضة والسعرات المحروقة", "🔔 تذكير المي والوجبات ونصيحة يومية", "🎯 حساب الهدف تلقائياً", "💧 عداد المي و⚖️ متابعة الوزن"];
 function subBadge() {
@@ -271,6 +280,7 @@ function subSheet(reason) {
       <button class="btn" id="s-send">ابعت الطلب</button>`;
   }
   sheet(`<h2>${subState.active ? "اشتراكك" : "اشترك بحريره"}</h2>${body}
+    ${supportBox()}
     <details><summary class="muted" style="cursor:pointer">عندك كود تفعيل؟ / كود جهازك</summary>
       <div class="stack" style="margin-top:8px"><small class="muted">كود جهازك: <code style="direction:ltr">${shortCode(id)}</code> <code style="direction:ltr;font-size:11px;display:block">${id}</code></small>
       <input id="s-code" type="text" dir="ltr" placeholder="الصق كود التفعيل هون"><button class="btn ghost" id="s-apply">فعّل</button></div></details>`, el => {
@@ -923,7 +933,7 @@ function renderLocked() {
     <p class="muted" style="margin:0">${pending ? "أول ما ينقبل الإيصال بيتفعّل التطبيق لحاله. خلّي التطبيق مفتوح أو ارجعله بعد شوي." : "اشترك بـ " + esc(SUB.config.price || "500") + " " + esc(SUB.config.currency) + " بالشهر وكمّل مع كل الميزات."}</p>
     <ul style="margin:0;padding-inline-start:20px;line-height:1.9;text-align:start">${PREMIUM_FEATURES.map(f => `<li>${f}</li>`).join("")}</ul>
     <button class="btn" id="lock-sub" style="width:100%">${pending ? "تحقق من الطلب" : "اشترك هلق"}</button>
-  </div>`;
+  </div>${supportBox()}`;
   $("#lang").onclick = () => setLang(LANG === "en" ? "ar" : "en");
   $("#lock-sub").onclick = () => subSheet();
 }

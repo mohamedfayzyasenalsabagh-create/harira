@@ -9,7 +9,7 @@ const SUB = {
   trialDays: 3,
   config: { price: "", currency: "ل.س", whatsapp: "" },
 };
-fetch("config.json", { cache: "no-cache" }).then(r => r.json()).then(c => Object.assign(SUB.config, c)).catch(() => {});
+fetch("config.json", { cache: "no-cache" }).then(r => r.json()).then(c => { Object.assign(SUB.config, c); if (typeof render === "function" && !document.querySelector(".sheet-bg")) render(); }).catch(() => {});
 
 const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
