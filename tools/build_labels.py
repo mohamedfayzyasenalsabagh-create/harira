@@ -35,6 +35,12 @@ DIRECT = {
  "Chocolate chip cookie":"بسكويت حلو","Spanakopita":"فطيرة سبانخ","Fried dough":"عوامة / لقيمات","Cheesesteak":"ساندويشة لحم",
  "Shami kebab":"كفتة مشوية","Pain au chocolat":"كرواسون","Chocolate pudding":"مهلبية","Stir-fried tomato and scrambled eggs":"عجة بيض","Grilled cheese":"جبنة حلوم مشوية","Halloumi":"جبنة حلوم مشوية","Steak":"ستيك لحم مشوي",
 }
+# كل أنواع البيتزا والبرغر والهوت دوغ ← نفس الأكلة بالقاعدة
+import csv as _csv
+for _n in [r["name"] for r in _csv.DictReader(open("tools/aiy_food_labels.csv", encoding="utf-8"))]:
+    if "pizza" in _n.lower() and _n not in DIRECT: DIRECT[_n] = "بيتزا مارغريتا"
+    if ("hot dog" in _n.lower() or _n.endswith(" dog")) and _n not in DIRECT: DIRECT[_n] = "هوت دوغ"
+    if "burger" in _n.lower() and _n not in DIRECT: DIRECT[_n] = "برغر كامل (بالخبز)"
 for k, v in DIRECT.items():
     assert v in foods, ("missing food", k, v)
 

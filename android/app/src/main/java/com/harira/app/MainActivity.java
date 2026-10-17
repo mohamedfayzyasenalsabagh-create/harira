@@ -64,7 +64,7 @@ public class MainActivity extends Activity {
         s.setDatabaseEnabled(true);
         s.setAllowFileAccess(false);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
-        s.setUserAgentString(s.getUserAgentString() + " HariraApp/1");
+        s.setUserAgentString(s.getUserAgentString() + " HariraApp/2");
 
         // ملفات محلل الصور (موديل الأكل) مخزنة جوّا التطبيق: ما بتنزل من النت أبداً
         if (Build.VERSION.SDK_INT >= 24) {

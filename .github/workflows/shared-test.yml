@@ -1,0 +1,23 @@
+name: تجربة التعلّم المشترك
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/shared-test.yml", "tools/collect_shared.py"]
+permissions:
+  contents: write
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          T="harira-test-$RANDOM$RANDOM"
+          E=$(python3 -c "import base64,os;print(base64.b64encode(os.urandom(1024)).decode())")
+          curl -s -d "{\"v\":1,\"e\":\"$E\",\"items\":[{\"n\":\"كبة نية\",\"c\":\"أكلاتي\",\"k\":180,\"p\":9,\"cb\":22,\"f\":6,\"u\":\"صحن\",\"ug\":250,\"g\":300}]}" "https://ntfy.sh/$T" > post.txt
+          curl -s -d "junk" "https://ntfy.sh/$T" >/dev/null
+          echo '[]' > /tmp/s.json; sleep 3
+          TOPIC=$T SHARED_FILE=/tmp/s.json SINCE_FILE=/tmp/since.txt python3 tools/collect_shared.py | tee res.txt
+          python3 -c "import json;d=json.load(open('/tmp/s.json'));print('entries',len(d), d[0]['items'][0]['f']['n'] if d else '')" | tee -a res.txt
+          head -c 300 post.txt >> res.txt
+          mkdir -p /tmp/r && cp res.txt /tmp/r/ && cd /tmp/r && git init -q -b ci-shared && git add -A && git -c user.name=ci -c user.email=ci@x commit -qm r && git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-shared

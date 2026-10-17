@@ -14,20 +14,35 @@ const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const r0 = n => Math.round(n);
 const r1 = n => Math.round(n * 10) / 10;
-const fmt = n => r0(n).toLocaleString("ar-SY");
-const fmt1 = n => r1(n).toLocaleString("ar-SY");
+const fmt = n => r0(n).toLocaleString(LOC);
+const fmt1 = n => r1(n).toLocaleString(LOC);
 
 // ---------- التخزين ----------
 let S = { goal: 2000, days: {}, custom: [] };
 try { S = Object.assign(S, JSON.parse(localStorage.getItem("harira") || "{}")); } catch (e) {}
 function save() { try { localStorage.setItem("harira", JSON.stringify(S)); } catch (e) {} }
 // أكلاتي: أكلات أضافها المستخدم، بتنضم لقاعدة الأكلات
-function addCustomToFoods(c) { const f = { id: FOODS.length, n: c[0], c: "أكلاتي", k: c[1], p: c[2], cb: c[3], f: c[4], u: c[5], ug: c[6] }; FOODS.push(f); return f; }
+function addCustomToFoods(c) { const f = { id: FOODS.length, n: c[0], c: "أكلاتي", k: c[1], p: c[2], cb: c[3], f: c[4], u: c[5], ug: c[6], bc: c[7] }; FOODS.push(f); return f; }
 (S.custom || []).forEach(addCustomToFoods);
 // ذاكرة التعلّم: بصمة كل صورة مع الأكلة اللي اختارها المستخدم (محفوظة على الموبايل بس)
 let LEARN = [];
 try { LEARN = JSON.parse(localStorage.getItem("harira-learn") || "[]"); } catch (e) {}
 function saveLearn() { try { localStorage.setItem("harira-learn", JSON.stringify(LEARN.slice(-300))); } catch (e) {} }
+// التعلّم المشترك: كل تصحيح بيوصل لباقي المستخدمين (البصمة والاسم بس، بدون الصورة)
+const SHARE_URL = "https://ntfy.sh/harira-learn-b4ccc4173c9d";
+let SHARED = [];
+try { SHARED = JSON.parse(localStorage.getItem("harira-shared") || "[]"); } catch (e) {}
+fetch("ml/shared.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null).then(j => {
+  if (Array.isArray(j)) { SHARED = j; try { localStorage.setItem("harira-shared", JSON.stringify(j)); } catch (e) {} }
+}).catch(() => {});
+function shareLearning(entry) {
+  const queue = (() => { try { return JSON.parse(localStorage.getItem("harira-outbox") || "[]"); } catch (e) { return []; } })();
+  if (entry) queue.push({ v: 1, e: entry.e, items: entry.items.map(it => ({ ...it.f, g: it.g })) });
+  const keep = [];
+  const sendAll = queue.slice(-20).map(m => fetch(SHARE_URL, { method: "POST", body: JSON.stringify(m) }).then(r => { if (!r.ok) keep.push(m); }).catch(() => keep.push(m)));
+  Promise.all(sendAll).then(() => { try { localStorage.setItem("harira-outbox", JSON.stringify(keep)); } catch (e) {} });
+}
+setTimeout(() => shareLearning(null), 4000); // يبعت اللي ما انبعت وقت ما كان في نت
 let learnCtx = null; // { emb } بصمة الصورة الحالية لحتى نتعلم منها لما المستخدم يختار الأكلة
 
 const key = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -62,7 +77,7 @@ function dayLabel() {
   const y = new Date(); y.setDate(y.getDate() - 1);
   if (d === t) return "اليوم";
   if (d === key(y)) return "مبارح";
-  return day.toLocaleDateString("ar-SY", { weekday: "long", day: "numeric", month: "long" });
+  return day.toLocaleDateString(LOC, { weekday: "long", day: "numeric", month: "long" });
 }
 
 // ---------- شاشة اليوم ----------
@@ -89,8 +104,9 @@ function renderToday() {
   }).join("");
 
   app.innerHTML = `
-  <div class="head"><h1>حريره</h1>
-    <div class="datebar"><button class="icon-btn" id="prev" aria-label="اليوم السابق">›</button><span>${dayLabel()}</span><button class="icon-btn" id="next" aria-label="اليوم التالي" ${key(day) === key(new Date()) ? "disabled style=\"opacity:.35\"" : ""}>‹</button></div></div>
+  ${updateBanner()}
+  <div class="head"><div class="row" style="gap:8px"><h1>حريره</h1><button class="chip" id="lang" aria-label="اللغة">${LANG === "en" ? "ع" : "EN"}</button></div>
+    <div class="datebar"><button class="icon-btn" id="prev" aria-label="اليوم السابق">${LANG === "en" ? "‹" : "›"}</button><span>${dayLabel()}</span><button class="icon-btn" id="next" aria-label="اليوم التالي" ${key(day) === key(new Date()) ? "disabled style=\"opacity:.35\"" : ""}>${LANG === "en" ? "›" : "‹"}</button></div></div>
   <div class="stack">
     <div class="card ring-wrap">
       <div class="ring">
@@ -109,12 +125,19 @@ function renderToday() {
     </div>
     ${byMeal || `<div class="card empty"><div class="bowl">ح</div><p>ما سجلت شي ${dayLabel() === "اليوم" ? "اليوم" : "بهاليوم"} لسا.</p>
       <div class="row" style="justify-content:center;flex-wrap:wrap"><button class="btn" data-go="add">اختار أكلة</button><button class="btn ghost" data-go="photo">صوّر صحنك</button></div></div>`}
+    ${waterCard()}
     ${weekCard()}
+    ${weightCard()}
   </div>`;
 
   $("#prev").onclick = () => { day.setDate(day.getDate() - 1); render(); };
   $("#next").onclick = () => { if (key(day) !== key(new Date())) { day.setDate(day.getDate() + 1); render(); } };
   $("#goal").onclick = goalSheet;
+  $("#lang").onclick = () => setLang(LANG === "en" ? "ar" : "en");
+  const ub = $("#upd-x"); if (ub) ub.onclick = () => { try { sessionStorage.setItem("harira-upd-x", "1"); } catch (e) {} render(); };
+  $("#w-plus").onclick = () => { const k = key(day); S.water = S.water || {}; S.water[k] = Math.min(20, (S.water[k] || 0) + 1); save(); render(); };
+  $("#w-minus").onclick = () => { const k = key(day); S.water = S.water || {}; S.water[k] = Math.max(0, (S.water[k] || 0) - 1); save(); render(); };
+  $("#wt-add").onclick = weightSheet;
   app.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
     const l = entries(); l.splice(+b.dataset.del, 1); save(); render();
   });
@@ -133,8 +156,8 @@ function weekCard() {
   const gy = H - goal / max * H;
   const bars = vals.map((v, i) => {
     const h = Math.max(v / max * H, v > 0 ? 3 : 0);
-    const x = W - bw - i * (bw + gap); // من اليمين لليسار
-    const lbl = days[i].toLocaleDateString("ar-SY", { weekday: "short" });
+    const x = LANG === "en" ? i * (bw + gap) : W - bw - i * (bw + gap); // بالعربي من اليمين لليسار
+    const lbl = days[i].toLocaleDateString(LOC, { weekday: "short" });
     return `<rect x="${x}" y="${H - h}" width="${bw}" height="${h}" rx="6" fill="${v > goal ? "var(--tomato)" : "var(--herb)"}" opacity="${key(days[i]) === key(day) ? 1 : .55}"/>
       <text x="${x + bw / 2}" y="${H + 18}" text-anchor="middle" font-size="11" fill="var(--muted)">${lbl}</text>`;
   }).join("");
@@ -143,20 +166,161 @@ function weekCard() {
       <line x1="0" x2="${W}" y1="${gy}" y2="${gy}" stroke="var(--saffron)" stroke-dasharray="4 4" stroke-width="1.5"/>${bars}</svg></div>`;
 }
 
+// حساب الاحتياج اليومي (معادلة Mifflin-St Jeor) حسب الجسم والنشاط والهدف
+const ACTIVITY = [["قليل الحركة (مكتب)", 1.2], ["خفيف (رياضة ١-٣ أيام)", 1.375], ["متوسط (٣-٥ أيام)", 1.55], ["عالي (٦-٧ أيام)", 1.725], ["عالي جداً (شغل بدني)", 1.9]];
+const AIMS = [["تنزيل وزن", -500], ["تثبيت الوزن", 0], ["زيادة وزن / عضل", 300]];
+function calcGoal(pr) {
+  const bmr = 10 * pr.w + 6.25 * pr.h - 5 * pr.a + (pr.sex === "m" ? 5 : -161);
+  const tdee = bmr * ACTIVITY[pr.act][1];
+  const floor = pr.sex === "m" ? 1500 : 1200; // ما منقترح أقل من هيك بدون إشراف طبي
+  return { bmr: r0(bmr), tdee: r0(tdee), goal: Math.max(floor, r0((tdee + AIMS[pr.aim][1]) / 10) * 10) };
+}
 function goalSheet() {
+  const pr = Object.assign({ sex: "m", a: 30, h: 170, w: latestWeight() || 70, act: 1, aim: 1 }, S.profile || {});
   sheet(`<h2>هدفك اليومي</h2>
-    <label class="muted" for="g-in">كم سعرة بدك تاكل باليوم؟</label>
+    <p class="muted" style="margin:0;font-size:13px">عبّي معلوماتك وبحسبلك احتياجك، أو اكتب رقمك بإيدك تحت.</p>
+    <div class="row"><button class="chip" data-sex="m" aria-pressed="${pr.sex === "m"}">ذكر</button><button class="chip" data-sex="f" aria-pressed="${pr.sex === "f"}">أنثى</button></div>
+    <div class="row">
+      <div style="flex:1"><label class="muted" for="p-a">العمر</label><input id="p-a" type="number" inputmode="numeric" value="${pr.a}"></div>
+      <div style="flex:1"><label class="muted" for="p-h">الطول (سم)</label><input id="p-h" type="number" inputmode="numeric" value="${pr.h}"></div>
+      <div style="flex:1"><label class="muted" for="p-w">الوزن (كغ)</label><input id="p-w" type="number" inputmode="decimal" value="${pr.w}"></div></div>
+    <label class="muted" for="p-act">النشاط</label><select id="p-act">${ACTIVITY.map((x, i) => `<option value="${i}" ${i === pr.act ? "selected" : ""}>${x[0]}</option>`).join("")}</select>
+    <label class="muted" for="p-aim">هدفك</label><select id="p-aim">${AIMS.map((x, i) => `<option value="${i}" ${i === pr.aim ? "selected" : ""}>${x[0]}</option>`).join("")}</select>
+    <div class="note" id="p-res"></div>
+    <label class="muted" for="g-in">السعرات اليومية</label>
     <input id="g-in" type="number" inputmode="numeric" min="800" max="6000" value="${S.goal || 2000}">
-    <div class="quick">${[1500, 1800, 2000, 2200, 2500, 3000].map(v => `<button class="chip" data-v="${v}">${fmt(v)}</button>`).join("")}</div>
-    <p class="muted" style="margin:0;font-size:13px">الاحتياج بيختلف حسب العمر والوزن والنشاط. إذا عندك حالة صحية، اسأل طبيب أو أخصائي تغذية.</p>
+    <p class="muted" style="margin:0;font-size:13px">الحساب تقريبي. إذا عندك حالة صحية أو حمل أو بدك تنزل كتير، استشير طبيب أو أخصائي تغذية.</p>
     <button class="btn" id="g-save">احفظ</button>`, el => {
-    el.querySelectorAll("[data-v]").forEach(b => b.onclick = () => $("#g-in", el).value = b.dataset.v);
+    const read = () => ({ sex: pr.sex, a: +$("#p-a", el).value, h: +$("#p-h", el).value, w: +$("#p-w", el).value, act: +$("#p-act", el).value, aim: +$("#p-aim", el).value });
+    const upd = () => {
+      const x = read();
+      if (!(x.a >= 12 && x.a <= 100 && x.h >= 120 && x.h <= 230 && x.w >= 30 && x.w <= 300)) { $("#p-res", el).textContent = "عبّي العمر والطول والوزن بأرقام صحيحة."; return; }
+      const r = calcGoal(x);
+      $("#p-res", el).innerHTML = `حرقك وانت مرتاح ≈ <b class="num">${fmt(r.bmr)}</b> · مع نشاطك ≈ <b class="num">${fmt(r.tdee)}</b><br>المقترح لهدفك: <b class="num">${fmt(r.goal)}</b> سعرة باليوم`;
+      $("#g-in", el).value = r.goal;
+    };
+    el.querySelectorAll("[data-sex]").forEach(b => b.onclick = () => { pr.sex = b.dataset.sex; el.querySelectorAll("[data-sex]").forEach(x => x.setAttribute("aria-pressed", x === b)); upd(); });
+    ["p-a", "p-h", "p-w", "p-act", "p-aim"].forEach(id => $("#" + id, el).oninput = upd);
+    if (S.profile) upd();
     $("#g-save", el).onclick = () => {
       const v = Math.round(+$("#g-in", el).value);
-      if (v >= 800 && v <= 6000) { S.goal = v; save(); closeSheet(); render(); }
-      else toast("اكتب رقم بين ٨٠٠ و٦٠٠٠");
+      if (!(v >= 800 && v <= 6000)) return toast("اكتب رقم بين ٨٠٠ و٦٠٠٠");
+      const x = read();
+      if (x.a && x.h && x.w) { S.profile = x; if (!S.weights || !S.weights[key(new Date())]) logWeight(x.w); }
+      S.goal = v; save(); closeSheet(); render();
     };
   });
+}
+
+// ===== تنبيه نسخة جديدة من غلاف التطبيق =====
+const APK_URL = "https://github.com/mohamedfayzyasenalsabagh-create/harira/releases/latest/download/harira.apk";
+const wrapperVer = +((navigator.userAgent.match(/HariraApp\/(\d+)/) || [])[1] || 0);
+let latestWrapper = 0;
+if (wrapperVer) fetch("app-version.json", { cache: "no-cache" }).then(r => r.json()).then(j => { latestWrapper = +j.wrapper || 0; if (latestWrapper > wrapperVer && tab === "today") render(); }).catch(() => {});
+function updateBanner() {
+  let hidden = false; try { hidden = !!sessionStorage.getItem("harira-upd-x"); } catch (e) {}
+  if (!wrapperVer || latestWrapper <= wrapperVer || hidden) return "";
+  return `<div class="note row between" style="gap:8px;margin-bottom:12px"><span>في نسخة جديدة من التطبيق</span>
+    <span class="row" style="gap:6px"><a class="chip" href="${APK_URL}" style="text-decoration:none;color:inherit">نزّلها</a><button class="chip" id="upd-x">لاحقاً</button></span></div>`;
+}
+
+// ===== المي والوزن =====
+function latestWeight() { const w = S.weights || {}; const k = Object.keys(w).sort().pop(); return k ? w[k] : null; }
+function logWeight(v) { (S.weights = S.weights || {})[key(new Date())] = v; save(); }
+function waterCard() {
+  const k = key(day), n = (S.water || {})[k] || 0, goal = 8;
+  return `<div class="card"><div class="row between"><h2>المي</h2><span class="muted num">${fmt(n)} / ${fmt(goal)} كاسات</span></div>
+    <div class="row between" style="margin-top:10px"><button class="icon-btn" id="w-minus" aria-label="أنقص كاسة">−</button>
+      <div class="cups" aria-hidden="true">${Array.from({ length: goal }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</div>
+      <button class="icon-btn" id="w-plus" aria-label="زيد كاسة">+</button></div></div>`;
+}
+function weightCard() {
+  const w = S.weights || {}, ks = Object.keys(w).sort().slice(-30);
+  const last = ks.length ? w[ks[ks.length - 1]] : null;
+  let chart = "";
+  if (ks.length >= 2) {
+    const vals = ks.map(k => w[k]), mn = Math.min(...vals) - 1, mx = Math.max(...vals) + 1, W = 300, H = 80;
+    const pts = vals.map((v, i) => `${W - i / (vals.length - 1) * W},${H - (v - mn) / (mx - mn) * H}`).join(" ");
+    chart = `<svg viewBox="-6 -6 ${W + 12} ${H + 12}" style="width:100%;margin-top:8px" role="img" aria-label="الوزن مع الوقت"><polyline points="${pts}" fill="none" stroke="var(--herb)" stroke-width="2.5" stroke-linejoin="round"/>
+      <circle cx="0" cy="${H - (vals[vals.length - 1] - mn) / (mx - mn) * H}" r="4" fill="var(--herb)"/></svg>
+      <div class="row between muted num" style="font-size:12px"><span>${fmt1(vals[0])} كغ</span><span>${fmt1(vals[vals.length - 1])} كغ</span></div>`;
+  }
+  return `<div class="card"><div class="row between"><h2>الوزن</h2><button class="chip" id="wt-add">${last ? "آخر وزن: " + fmt1(last) + " كغ · سجّل" : "سجّل وزنك"}</button></div>${chart}</div>`;
+}
+function weightSheet() {
+  sheet(`<h2>وزنك اليوم</h2><label class="muted" for="wt">الوزن بالكيلو</label>
+    <input id="wt" type="number" inputmode="decimal" step="0.1" value="${latestWeight() || ""}"><button class="btn" id="wt-save">احفظ</button>`, el => {
+    $("#wt-save", el).onclick = () => {
+      const v = r1(+$("#wt", el).value);
+      if (!(v >= 30 && v <= 300)) return toast("اكتب وزن صحيح بالكيلو");
+      logWeight(v); if (S.profile) S.profile.w = v; save(); closeSheet(); render();
+    };
+  });
+}
+
+// ===== المفضلة والأخيرة =====
+function recentFoods() {
+  const seen = new Set(), out = [];
+  const days = Object.keys(S.days).sort().reverse();
+  for (const d of days) for (const e of [...S.days[d]].reverse()) {
+    if (seen.has(e.n)) continue; seen.add(e.n);
+    const f = FOODS.find(x => x.n === e.n);
+    if (f) out.push({ f, g: e.g });
+    if (out.length >= 8) return out;
+  }
+  return out;
+}
+const isFav = n => (S.favs || []).includes(n);
+function toggleFav(n) { S.favs = S.favs || []; S.favs = isFav(n) ? S.favs.filter(x => x !== n) : [...S.favs, n]; save(); }
+
+// ===== الباركود =====
+let zxingReady = null;
+function decodeBarcode(file) {
+  zxingReady = zxingReady || loadScript("ml/zxing.min.js");
+  return zxingReady.then(() => new Promise((ok, bad) => {
+    const img = new Image();
+    img.onload = () => {
+      const Z = window.ZXing, hints = new Map();
+      hints.set(Z.DecodeHintType.TRY_HARDER, true);
+      hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E, Z.BarcodeFormat.CODE_128]);
+      const reader = new Z.MultiFormatReader(); reader.setHints(hints);
+      for (const size of [1200, 800, 1600]) for (const rot of [0, 90]) {
+        const s = Math.min(1, size / Math.max(img.width, img.height)), c = document.createElement("canvas"), ctx = c.getContext("2d");
+        const w = Math.round(img.width * s), h = Math.round(img.height * s);
+        if (rot) { c.width = h; c.height = w; ctx.translate(h, 0); ctx.rotate(Math.PI / 2); } else { c.width = w; c.height = h; }
+        ctx.drawImage(img, 0, 0, w, h);
+        try { return ok(reader.decode(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(c)))).getText()); } catch (e) {}
+      }
+      bad(new Error("ما قدرت اقرأ الباركود. قرّب الكاميرا وخلّي الخطوط واضحة."));
+    };
+    img.onerror = () => bad(new Error("ما قدرت افتح الصورة"));
+    img.src = URL.createObjectURL(file);
+  }));
+}
+async function scanBarcode(file) {
+  toast("عم اقرأ الباركود…");
+  let code;
+  try { code = await decodeBarcode(file); } catch (e) { return toast(e.message); }
+  const mine = FOODS.find(f => f.bc === code);
+  if (mine) return qtySheet(mine);
+  if (!navigator.onLine) return toast("الباركود " + code + ": بدو إنترنت لأول مرة");
+  toast("عم دوّر على المنتج…");
+  try {
+    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,product_name_ar,product_name_en,brands,nutriments,serving_quantity`);
+    const j = await r.json();
+    const pr = j.product, nu = pr && pr.nutriments;
+    const k = nu && (nu["energy-kcal_100g"] ?? (nu["energy_100g"] ? nu["energy_100g"] / 4.184 : null));
+    if (!pr || k == null) throw new Error("nf");
+    const base = pr.product_name_ar || pr.product_name || pr.product_name_en || ("منتج " + code), brand = pr.brands ? pr.brands.split(",")[0].trim() : "";
+    const name = base + (brand && !base.toLowerCase().includes(brand.toLowerCase()) ? " · " + brand : "");
+    const sq = +pr.serving_quantity || 100;
+    const c = [name.slice(0, 60), r0(k), r1(nu.proteins_100g || 0), r1(nu.carbohydrates_100g || 0), r1(nu.fat_100g || 0), "حصة", sq, code];
+    (S.custom = S.custom || []).push(c); save();
+    qtySheet(addCustomToFoods(c));
+  } catch (e) {
+    toast("ما لقيت هالمنتج بالقاعدة العالمية. أضفه لأكلاتي من المكتوب على الغلاف.");
+    query = ""; customSheet(code);
+  }
 }
 
 // ---------- شاشة إضافة أكلة ----------
@@ -167,23 +331,39 @@ function renderAdd() {
   <div class="head"><h1>أضف أكلة</h1><span class="muted">${dayLabel()}</span></div>
   <div class="stack">
     ${learnCtx ? `<div class="note row between" style="gap:8px"><span>اختار الأكلة اللي بالصورة، وبتعلّمها للمرة الجاية.</span><button class="chip" id="learn-x">إلغاء</button></div>` : ""}
-    <input id="q" type="search" placeholder="دوّر: رز، شاورما، تفاح…" value="${esc(query)}" aria-label="ابحث عن أكلة">
+    <div class="row"><input id="q" type="search" placeholder="دوّر: رز، شاورما، تفاح…" value="${esc(query)}" aria-label="ابحث عن أكلة">
+      <label class="icon-btn" for="bc-in" aria-label="امسح باركود" title="امسح باركود" style="flex:none;width:46px;height:46px">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5h3M17 5h3v2M20 17v2h-3M7 19H4v-2M8 9v6M11 9v6M14 9v6M17 9v6"/></svg></label>
+      <input id="bc-in" type="file" accept="image/*" capture="environment" hidden></div>
+    ${quickRow()}
     <div class="chips">${cats.map(c => `<button class="chip" aria-pressed="${c === cat}" data-cat="${esc(c)}">${esc(c)}</button>`).join("")}</div>
     <div class="card foods" id="list"></div>
     <button class="btn ghost" id="new-food">+ أكلة مو موجودة؟ أضفها لأكلاتي</button>
     <p class="muted" style="font-size:12px;margin:0">القيم تقريبية لكل ١٠٠ غرام، وبتختلف حسب طريقة الطبخ والمكونات.</p>
   </div>`;
   const lx = $("#learn-x"); if (lx) lx.onclick = () => { learnCtx = null; renderAdd(); };
-  $("#new-food").onclick = customSheet;
+  $("#new-food").onclick = () => customSheet();
+  $("#bc-in").onchange = e => e.target.files[0] && scanBarcode(e.target.files[0]);
+  app.querySelectorAll("[data-quick]").forEach(b => b.onclick = () => { const [n, g] = b.dataset.quick.split("|"); const f = FOODS.find(x => x.n === n); if (f) qtySheet(f, null, +g || f.ug); });
   const q = $("#q");
   q.oninput = () => { query = q.value; drawList(); };
   app.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { cat = b.dataset.cat; renderAdd(); });
   drawList();
 }
+function quickRow() {
+  if (query || learnCtx) return "";
+  const favs = (S.favs || []).map(n => FOODS.find(f => f.n === n)).filter(Boolean).map(f => ({ f, g: f.ug, fav: true }));
+  const rec = recentFoods().filter(r => !isFav(r.f.n));
+  const all = [...favs, ...rec].slice(0, 10);
+  if (!all.length) return "";
+  return `<div class="stack" style="gap:6px"><span class="muted" style="font-size:13px">المفضلة والأخيرة</span>
+    <div class="chips">${all.map(x => `<button class="chip" data-quick="${esc(x.f.n)}|${x.g}">${x.fav ? "★ " : ""}${esc(x.f.n)} · <span class="num">${fmt(x.g)}غ</span></button>`).join("")}</div></div>`;
+}
 function drawList() {
   const nq = norm(query.trim());
-  let list = FOODS.filter(f => (cat === "الكل" || f.c === cat) && (!nq || norm(f.n).includes(nq)));
-  if (nq) list.sort((a, b) => norm(a.n).indexOf(nq) - norm(b.n).indexOf(nq));
+  const nm = f => norm(f.n) + " " + norm(foodName(f.n));
+  let list = FOODS.filter(f => (cat === "الكل" || f.c === cat) && (!nq || nm(f).includes(nq)));
+  if (nq) list.sort((a, b) => nm(a).indexOf(nq) - nm(b).indexOf(nq));
   $("#list").innerHTML = list.length ? list.slice(0, 120).map(f => `<button class="food" data-id="${f.id}">
       <span class="t">${esc(f.n)}<small>${esc(f.c)} · ١ ${esc(f.u)} ≈ ${fmt(f.ug)} غ</small></span>
       <span class="k num">${fmt(f.k)} <small class="muted">/١٠٠غ</small></span></button>`).join("")
@@ -191,7 +371,7 @@ function drawList() {
   $("#list").querySelectorAll("[data-id]").forEach(b => b.onclick = () => qtySheet(FOODS[+b.dataset.id]));
 }
 
-function customSheet() {
+function customSheet(barcode) {
   sheet(`<h2>أكلة جديدة لأكلاتي</h2>
     <label class="muted" for="c-n">الاسم</label><input id="c-n" type="text" value="${esc(query)}" placeholder="مثلاً: كبة نية، فطيرة جدتي…">
     <label class="muted" for="c-k">السعرات بكل ١٠٠ غرام</label><input id="c-k" type="number" inputmode="decimal" placeholder="مثلاً ٢٠٠">
@@ -205,6 +385,7 @@ function customSheet() {
       if (!(k >= 0 && k <= 900)) return toast("اكتب السعرات بين ٠ و٩٠٠ لكل ١٠٠ غرام");
       // تقدير تقريبي للعناصر من السعرات: ٢٠٪ بروتين، ٥٠٪ كربوهيدرات، ٣٠٪ دهون
       const c = [n, k, r1(k * .2 / 4), r1(k * .5 / 4), r1(k * .3 / 9), u, ug];
+      if (typeof barcode === "string") c.push(barcode);
       (S.custom = S.custom || []).push(c); save();
       const f = addCustomToFoods(c);
       closeSheet(); setTimeout(() => qtySheet(f), 50);
@@ -215,7 +396,8 @@ function customSheet() {
 function qtySheet(f, src, g0) {
   let g = g0 || f.ug;
   let meal = guessMeal();
-  sheet(`<div class="row between"><h2>${esc(f.n)}</h2><span class="muted num">${fmt(f.k)} سعرة/١٠٠غ</span></div>
+  sheet(`<div class="row between"><h2>${esc(f.n)}</h2><button class="icon-btn" id="fav" aria-label="مفضلة" aria-pressed="${isFav(f.n)}" style="color:${isFav(f.n) ? "var(--saffron)" : "var(--muted)"}">${isFav(f.n) ? "★" : "☆"}</button></div>
+    <span class="muted num" style="margin-top:-8px">${fmt(f.k)} سعرة/١٠٠غ</span>
     <label class="muted" for="gr">الكمية بالغرام</label>
     <div class="qty"><button class="icon-btn" id="minus" aria-label="أنقص">−</button>
       <input id="gr" type="number" inputmode="decimal" min="1" value="${g}"><button class="icon-btn" id="plus" aria-label="زيد">+</button></div>
@@ -224,9 +406,10 @@ function qtySheet(f, src, g0) {
       <button class="chip" data-g="${r0(f.ug / 2)}">نص ${esc(f.u)}</button><button class="chip" data-g="100">١٠٠ غ</button></div>
     <div class="result" id="res"></div>
     <label class="muted" for="meal">الوجبة</label>
-    <select id="meal">${MEALS.map(m => `<option ${m === meal ? "selected" : ""}>${m}</option>`).join("")}</select>
+    <select id="meal">${MEALS.map(m => `<option value="${m}" ${m === meal ? "selected" : ""}>${m}</option>`).join("")}</select>
     <button class="btn" id="add">أضف للسجل</button>`, el => {
     const gr = $("#gr", el);
+    $("#fav", el).onclick = () => { toggleFav(f.n); const on = isFav(f.n), b = $("#fav", el); b.textContent = on ? "★" : "☆"; b.style.color = on ? "var(--saffron)" : "var(--muted)"; toast(on ? "انضافت للمفضلة" : "انشالت من المفضلة"); };
     const upd = () => {
       g = Math.max(0, +gr.value || 0);
       const v = calc(f, g);
@@ -243,7 +426,7 @@ function qtySheet(f, src, g0) {
       const v = calc(f, g);
       const fromPhoto = !!learnCtx;
       query = "";
-      if (learnCtx) { learn(learnCtx.emb, f, g); learnCtx = null; }
+      if (learnCtx) { learn(learnCtx.emb, [{ f, g }]); learnCtx = null; }
       addEntry({ n: f.n, g, ...v, meal: $("#meal", el).value, ...(src || fromPhoto ? { src: "photo" } : {}) });
       closeSheet(); toast(`انضافت: ${f.n} (${fmt(v.k)} سعرة)`);
       if (src === "photo" || fromPhoto) { photo = null; go("today"); }
@@ -276,24 +459,29 @@ function renderPhoto() {
     else if (p.state === "error") inner = `<p style="color:var(--tomato);margin:0">${esc(p.error)}</p>
       <div class="row" style="flex-wrap:wrap"><button class="btn" id="retry">جرّب مرة تانية</button><button class="btn ghost" data-go="add">دوّر بالأسماء</button></div>`;
     else if (p.state === "local") {
-      const best = p.cands[0] ? p.cands[0].score : 0;
       const mul = SIZES[p.size || 1][1];
-      inner = p.cands.length ? `<div class="stack" style="gap:8px"><b>شو هالأكلة؟ اختار الصح:</b>
-        <div class="row" style="flex-wrap:wrap;gap:6px"><span class="muted" style="font-size:13px">حجم الحصة:</span>${SIZES.map((z, i) => `<button class="chip" data-size="${i}" aria-pressed="${(p.size || 1) === i}">${z[0]}</button>`).join("")}</div>
-        <div class="foods">${p.cands.map((c, i) => { const g = c.learned && c.g ? r0(c.g * mul / 5) * 5 : r0(c.food.ug * mul / 5) * 5; return `<button class="food" data-cand="${i}">
-          <span class="t">${c.learned ? "⭐ " : ""}${esc(c.food.gen ? c.food.type : c.food.n)}<small>${c.learned ? "تعلّمتها منك · " : ""}${c.food.gen && c.en ? esc(c.en) + " · " : ""}تقريباً ${fmt(g)} غ (${esc(c.food.u)}) · ${fmt(c.score * 100)}٪ ثقة</small></span>
-          <span class="k num">≈ ${fmt(c.food.k * g / 100)}<small class="muted" style="display:block">سعرة</small></span></button>`; }).join("")}</div></div>
-        ${best < 0.25 ? `<p class="note">مو متأكد كتير من هالصورة. إذا ولا وحدة صح، دوّر عليها بالاسم.</p>` : ""}`
+      const others = p.cands.filter(c => !p.items.some(it => it.food.n === c.food.n));
+      inner = `<div class="row" style="flex-wrap:wrap;gap:6px"><span class="muted" style="font-size:13px">حجم الصحن:</span>${SIZES.map((z, i) => `<button class="chip" data-size="${i}" aria-pressed="${(p.size || 1) === i}">${z[0]}</button>`).join("")}</div>`;
+      inner += p.items.length ? `<div><b>${p.learned === "mine" ? "⭐ تعلّمت هالصحن منك قبل:" : p.learned === "shared" ? "⭐ تعلّمته من مستخدمين تانيين:" : "بالصحن:"}</b>${p.items.map((it, i) => `<div class="ai-item">
+          <input type="checkbox" data-chk="${i}" ${it.on ? "checked" : ""} aria-label="ضمّن ${esc(it.food.n)}">
+          <div><b>${esc(it.food.gen ? it.food.type : it.food.n)}</b><small class="muted num" style="display:block"><span id="k${i}"></span>${it.food.gen && it.en ? " · " + esc(it.en) : ""}${it.score ? " · " + fmt(it.score * 100) + "٪" : ""}</small></div>
+          <label><input type="number" inputmode="decimal" data-g="${i}" value="${r0(it.grams * mul)}" aria-label="غرامات ${esc(it.food.n)}"><small class="muted">غرام</small></label></div>`).join("")}</div>
+        <div class="row between"><b>المجموع</b><b class="num" id="aitot" style="color:var(--tomato)"></b></div>
+        <select id="ai-meal" aria-label="الوجبة">${MEALS.map(m => `<option value="${m}" ${m === guessMeal() ? "selected" : ""}>${m}</option>`).join("")}</select>
+        <button class="btn" id="ai-add">أضف للسجل</button>`
         : `<p style="margin:0">ما قدرت ميّز أكل بهالصورة. جرّب صورة أقرب وأوضح.</p>`;
-      inner += `<div class="row" style="flex-wrap:wrap"><button class="btn ghost" data-go="add">ما لقيت أكلتي؟ اختارها وعلّمني ياها</button></div>
-        <button class="chip" id="cloud" style="align-self:flex-start">تحليل أونلاين للصحن كلو مع الغرامات (أبطأ)</button>`;
+      if (others.length) inner += `<div class="stack" style="gap:6px"><span class="muted" style="font-size:13px">في شي غلط أو ناقص؟ كبّس لتضيفه:</span>
+        <div class="row" style="flex-wrap:wrap;gap:6px">${others.map((c, i) => `<button class="chip" data-alt="${p.cands.indexOf(c)}">+ ${esc(c.food.gen ? c.food.type + " (" + c.en + ")" : c.food.n)}</button>`).join("")}</div></div>`;
+      inner += `<p class="note">الأوزان تقديرية حسب الحصة المعتادة. شيل الصح عن الغلط وعدّل الغرامات، والتطبيق بيتعلّم من اختيارك.</p>
+        <div class="row" style="flex-wrap:wrap"><button class="btn ghost" data-go="add">أكلة مو موجودة؟ دوّر عليها وعلّمني ياها</button></div>
+        <button class="chip" id="cloud" style="align-self:flex-start">تحليل أونلاين (أبطأ)</button>`;
     } else if (p.state === "done") {
       inner = p.items.length ? `<div>${p.items.map((it, i) => `<div class="ai-item">
           <input type="checkbox" data-chk="${i}" ${it.on ? "checked" : ""} aria-label="ضمّن ${esc(it.name)}">
           <div><b>${esc(it.name)}</b><small class="muted num" style="display:block" id="k${i}">${fmt(it.kcal100 * it.grams / 100)} سعرة</small></div>
           <label><input type="number" inputmode="decimal" data-g="${i}" value="${r0(it.grams)}" aria-label="غرامات ${esc(it.name)}"><small class="muted">غرام</small></label></div>`).join("")}</div>
         <div class="row between"><b>المجموع</b><b class="num" id="aitot" style="color:var(--tomato)"></b></div>
-        <select id="ai-meal" aria-label="الوجبة">${MEALS.map(m => `<option ${m === guessMeal() ? "selected" : ""}>${m}</option>`).join("")}</select>
+        <select id="ai-meal" aria-label="الوجبة">${MEALS.map(m => `<option value="${m}" ${m === guessMeal() ? "selected" : ""}>${m}</option>`).join("")}</select>
         <button class="btn" id="ai-add">أضف للسجل</button>`
         : `<p style="margin:0">ما قدرت ميّز أكل بهالصورة. جرّب صورة أوضح، أو اختار الأكلة يدوياً.</p>`;
       if (p.note) inner += `<p class="note">${esc(p.note)}</p>`;
@@ -310,11 +498,29 @@ function renderPhoto() {
   const cc = $("#cancel-cloud"); if (cc) cc.onclick = () => { p.cloudCtl && p.cloudCtl.abort(); p.state = p.cands ? "local" : "error"; renderPhoto(); };
   app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { if (p && p.emb && b.dataset.go === "add") learnCtx = { emb: p.emb }; query = ""; go(b.dataset.go); });
   app.querySelectorAll("[data-size]").forEach(b => b.onclick = () => { p.size = +b.dataset.size; renderPhoto(); });
-  app.querySelectorAll("[data-cand]").forEach(b => b.onclick = () => {
-    const c = p.cands[+b.dataset.cand], base = c.learned && c.g ? c.g : c.food.ug;
-    learnCtx = { emb: p.emb };
-    qtySheet(c.food, "photo", r0(base * SIZES[p.size || 1][1] / 5) * 5);
-  });
+  if (p && p.state === "local") {
+    const mul = SIZES[p.size || 1][1];
+    const tot = () => {
+      let sum = 0;
+      p.items.forEach((it, i) => { const k = it.food.k * it.g / 100; const el = $("#k" + i); if (el) el.textContent = fmt(k) + " سعرة"; if (it.on) sum += k; });
+      const t = $("#aitot"); if (t) t.textContent = fmt(sum) + " سعرة";
+    };
+    p.items.forEach(it => { it.g = r0(it.grams * mul); });
+    app.querySelectorAll("[data-g]").forEach(inp => inp.oninput = () => { const it = p.items[+inp.dataset.g]; it.g = Math.max(0, +inp.value || 0); it.grams = it.g / mul; tot(); });
+    app.querySelectorAll("[data-chk]").forEach(c => c.onchange = () => { p.items[+c.dataset.chk].on = c.checked; tot(); });
+    app.querySelectorAll("[data-alt]").forEach(b => b.onclick = () => { const c = p.cands[+b.dataset.alt]; p.items.push({ food: c.food, en: c.en, score: c.score, grams: c.food.ug, on: true }); renderPhoto(); });
+    const add = $("#ai-add");
+    if (add) add.onclick = () => {
+      const meal = $("#ai-meal").value, chosen = p.items.filter(it => it.on && it.g > 0);
+      if (!chosen.length) return toast("اختار أكلة وحدة على الأقل");
+      let sum = 0;
+      chosen.forEach(it => { const v = calc(it.food, it.g); sum += v.k; addEntry({ n: it.food.n, g: it.g, ...v, meal, src: "photo" }); });
+      learn(p.emb, chosen.map(it => ({ f: it.food, g: it.g })));
+      photo = null; toast(`انضاف ${fmt(chosen.length)} أصناف (${fmt(sum)} سعرة)`); go("today");
+    };
+    tot();
+  }
+
   if (p && p.state === "done" && p.items.length) {
     const tot = () => {
       let s = 0;
@@ -363,33 +569,81 @@ function getModels() {
 const b64e = u8 => { let s = ""; for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]); return btoa(s); };
 const b64d = s => Int8Array.from(atob(s), c => (c.charCodeAt(0) << 24) >> 24);
 function cosine(a, b) { let d = 0, na = 0, nb = 0; for (let i = 0; i < a.length; i++) { d += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; } return d / (Math.sqrt(na * nb) || 1); }
-function learn(emb, f, g) {
-  if (!emb) return;
-  LEARN.push({ e: emb, f: { n: f.n, c: f.c, k: f.k, p: f.p, cb: f.cb, f: f.f, u: f.u, ug: f.ug, gen: f.gen, type: f.type }, g });
-  saveLearn();
+const snap = f => ({ n: f.n, c: f.c, k: f.k, p: f.p, cb: f.cb, f: f.f, u: f.u, ug: f.ug, gen: f.gen, type: f.type });
+// items: [{ f: أكلة, g: غرامات }]
+function learn(emb, items, g) {
+  if (!emb || !items) return;
+  if (!Array.isArray(items)) items = [{ f: items, g }];
+  const entry = { e: emb, items: items.map(it => ({ f: snap(it.f), g: it.g })) };
+  LEARN.push(entry); saveLearn();
+  if (typeof shareLearning === "function") shareLearning(entry);
 }
+const itemsOf = it => it.items || [{ f: it.f, g: it.g }];
+const liveFood = f => FOODS.find(x => x.n === f.n) || f;
 function foodFromLabel(e) {
   if (e[1]) return FOODS.find(f => f.n === e[1]);
   return { n: `${e[2]} (${e[0]})`, type: e[2], c: "من صورة", k: e[3], p: e[4], cb: e[5], f: e[6], u: e[7], ug: e[8], gen: true };
 }
 // دمج: اللي تعلّمه من المستخدم أولاً، بعدين أقوى نتائج الموديلين
-function toCandidates(foodCats, generalCats, emb) {
-  const out = [], seen = new Set();
-  const push = (food, score, extra) => { if (!food || seen.has(food.n)) return; seen.add(food.n); out.push({ food, score, ...extra }); };
-  if (emb && LEARN.length) {
-    const q = b64d(emb), best = {};
-    for (const it of LEARN) { const sim = cosine(q, b64d(it.e)); if (!best[it.f.n] || sim > best[it.f.n].sim) best[it.f.n] = { sim, it }; }
-    Object.values(best).filter(x => x.sim >= 0.45).sort((a, b) => b.sim - a.sim).slice(0, 2).forEach(({ sim, it }) => {
-      const food = FOODS.find(f => f.n === it.f.n) || it.f;
-      push(food, Math.min(0.99, 0.5 + sim / 2), { learned: true, g: it.g, en: food.gen ? (food.n.match(/\((.*)\)$/) || [])[1] : "" });
-    });
-  }
-  const pool = [];
+function toCandidates(foodCats, generalCats) {
+  const out = [], seen = new Set(), pool = [];
   for (const c of foodCats) { const e = ML_LABELS[c.index]; if (e) pool.push({ food: foodFromLabel(e), en: e[0], score: c.score }); }
   for (const c of generalCats) { const n = ML_GENERAL[c.index]; if (n && c.score >= 0.12) pool.push({ food: FOODS.find(f => f.n === n), en: "", score: c.score }); }
   pool.sort((a, b) => b.score - a.score);
-  for (const c of pool) { if (out.length >= 4) break; push(c.food, c.score, { en: c.en }); }
+  for (const c of pool) { if (out.length >= 6) break; if (!c.food || seen.has(c.food.n)) continue; seen.add(c.food.n); out.push(c); }
   return out;
+}
+// أقرب صحن تعلّمه التطبيق (منك أو من باقي المستخدمين)
+function learnedMatch(emb) {
+  if (!emb) return null;
+  const q = b64d(emb); let best = null;
+  const pools = [[LEARN, 0], [typeof SHARED !== "undefined" ? SHARED : [], 0.03]];
+  for (const [list, penalty] of pools) for (const it of list) {
+    const sim = cosine(q, b64d(it.e)) - penalty;
+    if (!best || sim > best.sim) best = { sim, it, shared: penalty > 0 };
+  }
+  return best && best.sim >= 0.5 ? best : null;
+}
+// تحليل الصحن: منقسم الصورة لأجزاء ومنتعرّف على كل جزء، بعدين منجمع الأكلات المختلفة
+function cropCanvas(img, x, y, w, h) {
+  const c = document.createElement("canvas"); const S = 320;
+  c.width = S; c.height = Math.round(S * h / w);
+  c.getContext("2d").drawImage(img, x * img.naturalWidth, y * img.naturalHeight, w * img.naturalWidth, h * img.naturalHeight, 0, 0, c.width, c.height);
+  return c;
+}
+const FAMILIES = [["pizza", /بيتزا/], ["pasta", /سباغيتي|معكرونة|نودلز|لازانيا|رامن|كاربونارا/], ["rice", /رز|برياني|مقلوبة|كبسة|مندي|منسف/],
+  ["salad", /سلطة|تبولة|فتوش/], ["soup", /شوربة|حريرة/], ["burger", /برغر/], ["sandwich", /سندويشة|ساندويش|شاورما/], ["bread", /خبز|كعك|منقوشة/],
+  ["cake", /كيك|كاتو|تشيز كيك|حلويات/]];
+function analyzePlate(m, img, fullFood, fullGen) {
+  const votes = new Map(); // اسم الأكلة ← { food, en, best, hits }
+  const vote = (food, en, score, weight) => {
+    if (!food) return;
+    const v = votes.get(food.n) || { food, en, best: 0, hits: 0, w: 0 };
+    v.best = Math.max(v.best, score); v.hits++; v.w += score * weight; votes.set(food.n, v);
+  };
+  const consider = (foodCats, genCats, weight) => {
+    const fc = foodCats[0], gc = genCats && genCats[0];
+    if (fc && fc.score >= 0.3) { const e = ML_LABELS[fc.index]; if (e) vote(foodFromLabel(e), e[0], fc.score, weight); }
+    if (gc && gc.score >= 0.35) { const n = ML_GENERAL[gc.index]; if (n) vote(FOODS.find(f => f.n === n), "", gc.score, weight); }
+  };
+  const cats = r => (r && r.classifications[0] && r.classifications[0].categories) || [];
+  consider(fullFood, fullGen, 2);
+  // شبكة ٣×٣ متداخلة: كل جزء نص الصورة تقريباً
+  for (const y of [0, 0.25, 0.5]) for (const x of [0, 0.25, 0.5]) {
+    const c = cropCanvas(img, x, y, 0.5, 0.5);
+    consider(cats(m.food.classify(c)), m.general ? cats(m.general.classify(c)) : null, 1);
+  }
+  // الأنواع العامة (مو موجودة بالقاعدة) بدها ثقة أعلى، ومن كل عيلة أكل منخلي الأقوى بس (مثلاً ما منحط نوعين معكرونة)
+  const fam = f => { const n = f.gen ? f.type : f.n; for (const [k, re] of FAMILIES) if (re.test(n)) return k; return n; };
+  const ranked = [...votes.values()].filter(v => (v.food.gen ? v.best >= 0.6 : (v.best >= 0.45 || v.hits >= 2))).sort((a, b) => b.w - a.w);
+  const seenFam = new Set(), list = [];
+  for (const v of ranked) { const k = fam(v.food); if (seenFam.has(k)) continue; seenFam.add(k); list.push(v); if (list.length === 5) break; }
+  const totalW = list.reduce((s, v) => s + v.w, 0) || 1;
+  return list.map(v => {
+    // الحصة: الأكلة الرئيسية حصة كاملة، والجانبية أقل حسب قديش ظهرت بالصورة
+    const share = Math.max(0.35, Math.min(1, (v.w / totalW) * 1.6));
+    return { food: v.food, en: v.en, score: v.best, grams: r0(v.food.ug * share / 5) * 5 || v.food.ug, on: true };
+  });
 }
 
 async function analyze(file) {
@@ -401,14 +655,24 @@ async function analyze(file) {
     const m = await getModels();
     const img = new Image(); img.src = p.url; await img.decode();
     const cats = r => (r && r.classifications[0] && r.classifications[0].categories) || [];
-    const fr = m.food.classify(img);
-    const gr = m.general ? m.general.classify(img) : null;
+    const fullFood = cats(m.food.classify(img)), fullGen = m.general ? cats(m.general.classify(img)) : [];
     let emb = null;
     if (m.embed) { const e = m.embed.embed(img).embeddings[0]; if (e && e.quantizedEmbedding) emb = b64e(e.quantizedEmbedding); }
     p.emb = emb;
-    p.cands = toCandidates(cats(fr), cats(gr), emb);
+    p.cands = toCandidates(fullFood, fullGen);
+    const lm = learnedMatch(emb);
+    if (lm) {
+      p.learned = lm.shared ? "shared" : "mine";
+      p.items = itemsOf(lm.it).map(x => ({ food: liveFood(x.f), grams: x.g, on: true, score: Math.min(0.99, lm.sim) }));
+    } else {
+      p.items = analyzePlate(m, img, fullFood, fullGen);
+      // إذا ما في شي أكيد: منقترح أقوى أكلة موجودة بالقاعدة (أدق من نوع عام)
+      const fb = p.cands.find(c => !c.food.gen && c.score >= 0.1) || p.cands[0];
+      if (!p.items.length && fb) p.items = [{ ...fb, grams: fb.food.ug, on: true }];
+    }
     p.state = "local";
   } catch (e) {
+    console.error(e);
     p.state = "error";
     p.error = navigator.onLine ? "ما قدرت شغّل المحلل على هالموبايل. جرّب مرة تانية، أو دوّر على الأكلة بالاسم." : "أول مرة المحلل بيحتاج إنترنت ليتحمّل. اتصل بالنت وجرّب.";
   }

@@ -14,7 +14,7 @@
 :root{
   --bg:#F4F5EF; --card:#FFFFFF; --ink:#1E2A20; --muted:#667063; --line:#E1E4D8;
   --herb:#2F5D3A; --herb-soft:#E3EDDF; --tomato:#C9432A; --tomato-soft:#F8E1DA;
-  --saffron:#D99A1E; --lentil:#9A6B3F;
+  --saffron:#D99A1E; --lentil:#9A6B3F; --water:#3B82B6;
   --display:"Reem Kufi","IBM Plex Sans Arabic",system-ui,sans-serif;
   --body:"IBM Plex Sans Arabic","Noto Sans Arabic",system-ui,sans-serif;
   color-scheme:light;
@@ -22,11 +22,11 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#141A15; --card:#1D251E; --ink:#E9EEE6; --muted:#9DA899; --line:#2C362D;
   --herb:#7FB98A; --herb-soft:#24362A; --tomato:#F07A5E; --tomato-soft:#3A2420;
-  --saffron:#E8B34A; --lentil:#C99A6B; color-scheme:dark}}
+  --saffron:#E8B34A; --lentil:#C99A6B; --water:#6FB1E0; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#141A15; --card:#1D251E; --ink:#E9EEE6; --muted:#9DA899; --line:#2C362D;
   --herb:#7FB98A; --herb-soft:#24362A; --tomato:#F07A5E; --tomato-soft:#3A2420;
-  --saffron:#E8B34A; --lentil:#C99A6B; color-scheme:dark}
+  --saffron:#E8B34A; --lentil:#C99A6B; --water:#6FB1E0; color-scheme:dark}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--body);-webkit-tap-highlight-color:transparent}
@@ -117,6 +117,11 @@ input:focus,select:focus{outline:2px solid var(--herb);border-color:transparent}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spinner{animation-duration:3s}}
 
+/* المي */
+.cups{display:flex;gap:6px;flex:1;justify-content:center}
+.cups i{width:18px;height:26px;border-radius:4px 4px 8px 8px;border:2px solid var(--water);display:block}
+.cups i.on{background:var(--water)}
+
 /* شريط التبويب */
 nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--card);border-top:1px solid var(--line);
   display:grid;grid-template-columns:repeat(3,1fr);
@@ -140,6 +145,7 @@ nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--card
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
     من صورة</button>
 </nav>
+<script src="i18n.js"></script>
 <script src="foods.js"></script>
 <script src="app.js"></script>
 </body>
