@@ -41,8 +41,10 @@ sub_js = open("web/sub.js", encoding="utf-8").read()
 sp = _re.search(r'signPub: \{ x: "([^"]+)", y: "([^"]+)" \}', sub_js)
 acts = _re.search(r'actsTopic: "([^"]+)"', sub_js).group(1)
 d64 = lambda s: base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
-pub = ec.EllipticCurvePublicNumbers(int.from_bytes(d64(sp.group(1)), "big"), int.from_bytes(d64(sp.group(2)), "big"), ec.SECP256R1()).public_key()
-subs_f = "web/subs.json"
+sx, sy = os.environ.get("SIGN_X") or sp.group(1), os.environ.get("SIGN_Y") or sp.group(2)
+acts = os.environ.get("ACTS_TOPIC") or acts
+pub = ec.EllipticCurvePublicNumbers(int.from_bytes(d64(sx), "big"), int.from_bytes(d64(sy), "big"), ec.SECP256R1()).public_key()
+subs_f = os.environ.get("SUBS_FILE", "web/subs.json")
 subs = json.load(open(subs_f)) if os.path.exists(subs_f) else {}
 alines = urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{acts}/json?poll=1&since=all", headers={"User-Agent": "harira-collector"}), timeout=60).read().decode().splitlines()
 na = 0
