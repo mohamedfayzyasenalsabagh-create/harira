@@ -108,6 +108,7 @@ function renderToday() {
   ${updateBanner()}
   <div class="head"><div class="row" style="gap:8px"><h1>حريره</h1><button class="chip" id="lang" aria-label="اللغة">${LANG === "en" ? "ع" : "EN"}</button>
     <button class="chip" id="subchip" style="${subState.active ? "" : "background:var(--saffron);border-color:var(--saffron);color:#1E2A20"}">${subBadge()}</button>
+    ${isAdmin() ? `<a class="chip" href="admin.html" style="text-decoration:none;color:inherit;background:var(--herb);border-color:var(--herb);color:var(--card)">👑 لوحة الإدارة</a>` : ""}
     <button class="icon-btn" id="bell" aria-label="التذكيرات" style="width:34px;height:34px">🔔</button></div>
     <div class="datebar"><button class="icon-btn" id="prev" aria-label="اليوم السابق">${LANG === "en" ? "‹" : "›"}</button><span>${dayLabel()}</span><button class="icon-btn" id="next" aria-label="اليوم التالي" ${key(day) === key(new Date()) ? "disabled style=\"opacity:.35\"" : ""}>${LANG === "en" ? "›" : "‹"}</button></div></div>
   <div class="stack">
@@ -248,6 +249,7 @@ function supportBox() {
 // ===== الاشتراك =====
 const PREMIUM_FEATURES = ["📸 تحليل الصحن بالصورة مع السعرات", "🍽️ تسجيل الأكل وأكتر من ٢٥٠ أكلة", "🔎 مسح الباركود", "🏋️ الرياضة والسعرات المحروقة", "🔔 تذكير المي والوجبات ونصيحة يومية", "🎯 حساب الهدف تلقائياً", "💧 عداد المي و⚖️ متابعة الوزن"];
 function subBadge() {
+  if (isAdmin()) return "👑 أدمن";
   if (subState.active) return subState.lifetime ? "⭐ مدى الحياة" : "⭐ مشترك";
   if (inTrial()) return "تجربة: " + fmt(Math.ceil((subState.trialEnds - Date.now()) / 864e5)) + " أيام";
   return "اشترك";
@@ -273,7 +275,7 @@ function subSheet(reason) {
       <img src="pay-qr.jpg" alt="QR شام كاش" style="width:100%;max-width:300px;align-self:center;border-radius:14px">
       <div class="row"><code style="direction:ltr;flex:1;font-size:13px;word-break:break-all">${SUB.wallet}</code><button class="chip" id="copy-w">نسخ</button></div>
       <b>٢. ابعت صورة الإيصال:</b>
-      <label class="muted" for="s-name">اسمك</label><input id="s-name" type="text" value="${esc((req && req.name) || "")}">
+      <label class="muted" for="s-name">اسمك</label><input id="s-name" type="text" value="${esc((req && req.name) || (getAccount() || {}).name || "")}">
       <label class="muted" for="s-phone">رقم موبايلك (واتساب)</label><input id="s-phone" type="tel" dir="ltr" value="${esc((req && req.phone) || "")}">
       <label class="btn ghost" for="s-rc" id="s-rc-l">📎 اختار صورة الإيصال</label><input id="s-rc" type="file" accept="image/*" hidden>
       <img id="s-prev" alt="" style="display:none;max-height:180px;object-fit:contain;border-radius:12px">
@@ -281,8 +283,9 @@ function subSheet(reason) {
   }
   sheet(`<h2>${subState.active ? "اشتراكك" : "اشترك بحريره"}</h2>${body}
     ${supportBox()}
-    <details><summary class="muted" style="cursor:pointer">عندك كود تفعيل؟ / كود جهازك</summary>
-      <div class="stack" style="margin-top:8px"><small class="muted">كود جهازك: <code style="direction:ltr">${shortCode(id)}</code> <code style="direction:ltr;font-size:11px;display:block">${id}</code></small>
+    <div class="row between"><small class="muted" dir="ltr">${esc((getAccount() || {}).email || "")}</small><button class="chip" id="logout">تسجيل خروج</button></div>
+    <details><summary class="muted" style="cursor:pointer">عندك كود تفعيل؟ / كود حسابك</summary>
+      <div class="stack" style="margin-top:8px"><small class="muted">كود حسابك: <code style="direction:ltr">${shortCode(id)}</code> <code style="direction:ltr;font-size:11px;display:block">${id}</code></small>
       <input id="s-code" type="text" dir="ltr" placeholder="الصق كود التفعيل هون"><button class="btn ghost" id="s-apply">فعّل</button></div></details>`, el => {
     const cw = $("#copy-w", el); if (cw) cw.onclick = () => navigator.clipboard.writeText(SUB.wallet).then(() => toast("انسخ"), () => toast(SUB.wallet));
     let file = null;
@@ -297,6 +300,7 @@ function subSheet(reason) {
       catch (e) { toast(e.message || "ما زبط، جرب كمان مرة"); send.disabled = false; send.textContent = "ابعت الطلب"; }
     };
     const chk = $("#sub-check", el); if (chk) chk.onclick = async () => { chk.disabled = true; const c = await pollActivation(); await refreshSub(); closeSheet(); render(); toast(c ? "انحدّث وضع اشتراكك" : "لسا ما في رد، بيوصلك لحاله"); };
+    $("#logout", el).onclick = () => { logout(); closeSheet(); subState.active = false; refreshSub().then(render); toast("سجّلت خروج"); };
     $("#s-apply", el).onclick = async () => {
       const r = await applyToken($("#s-code", el).value);
       if (!r.ok) return toast("الكود مو صحيح أو مو لهالجهاز");
@@ -918,11 +922,41 @@ window.hariraReceivePhoto = async dataUrl => {
   } catch (e) { toast("ما قدرت افتح الصورة، جرب مرة تانية"); }
 };
 function render() {
+  if (!getAccount()) { document.querySelector("nav.tabs").hidden = true; return renderLogin(); }
   const locked = !isPremium();
   document.querySelector("nav.tabs").hidden = locked;
   if (locked) return renderLocked();
   ({ today: renderToday, add: renderAdd, photo: renderPhoto })[tab]();
 }
+// تسجيل الدخول: نفس الشاشة للحساب الجديد والقديم (الحساب = الإيميل + كلمة السر)
+function renderLogin() {
+  app.innerHTML = `<div class="head"><h1>حريره</h1><button class="chip" id="lang">${LANG === "en" ? "ع" : "EN"}</button></div>
+  <div class="card stack" style="align-items:stretch">
+    <img src="icon-192.png" alt="" width="84" height="84" style="border-radius:22px;align-self:center">
+    <h2 style="text-align:center">أهلاً بحريره</h2>
+    <p class="muted" style="margin:0;text-align:center">سجّل دخول أو اعمل حساب جديد بنفس الخطوة. اشتراكك بينحفظ بحسابك، فبترجعله من أي موبايل.</p>
+    <label class="muted" for="l-name">اسمك (للحساب الجديد)</label><input id="l-name" type="text" autocomplete="name">
+    <label class="muted" for="l-email">الإيميل</label><input id="l-email" type="email" dir="ltr" autocomplete="email" inputmode="email">
+    <label class="muted" for="l-pass">كلمة السر</label>
+    <div class="row"><input id="l-pass" type="password" dir="ltr" autocomplete="current-password"><button class="icon-btn" id="l-eye" aria-label="إظهار كلمة السر" style="flex:none">👁</button></div>
+    <button class="btn" id="l-go">دخول</button>
+    <small class="muted">كلمة السر ما فيها استرجاع، احفظها منيح. إذا نسيتها، تواصل مع الدعم.</small>
+  </div>${supportBox()}`;
+  $("#lang").onclick = () => setLang(LANG === "en" ? "ar" : "en");
+  $("#l-eye").onclick = () => { const i = $("#l-pass"); i.type = i.type === "password" ? "text" : "password"; };
+  const go = async () => {
+    const b = $("#l-go"); b.disabled = true; b.textContent = "لحظة…";
+    try {
+      const r = await login($("#l-email").value, $("#l-pass").value, $("#l-name").value);
+      await refreshSub(); await pollActivation(); await refreshSub();
+      tab = "today"; render(); scheduleReminders();
+      toast(r.admin ? "أهلاً يا أدمن 👑" : "أهلاً فيك 👋");
+    } catch (e) { toast(e.message || "ما زبط، جرب كمان مرة"); b.disabled = false; b.textContent = "دخول"; }
+  };
+  $("#l-go").onclick = go;
+  $("#l-pass").onkeydown = e => { if (e.key === "Enter") go(); };
+}
+
 // بعد ٣ أيام التجربة: كل التطبيق بيحتاج اشتراك
 function renderLocked() {
   const req = getReq(), pending = req && req.status === "pending";
@@ -933,9 +967,11 @@ function renderLocked() {
     <p class="muted" style="margin:0">${pending ? "أول ما ينقبل الإيصال بيتفعّل التطبيق لحاله. خلّي التطبيق مفتوح أو ارجعله بعد شوي." : "اشترك بـ " + esc(SUB.config.price || "500") + " " + esc(SUB.config.currency) + " بالشهر وكمّل مع كل الميزات."}</p>
     <ul style="margin:0;padding-inline-start:20px;line-height:1.9;text-align:start">${PREMIUM_FEATURES.map(f => `<li>${f}</li>`).join("")}</ul>
     <button class="btn" id="lock-sub" style="width:100%">${pending ? "تحقق من الطلب" : "اشترك هلق"}</button>
-  </div>${supportBox()}`;
+  </div>${supportBox()}
+  <div class="row between" style="margin-top:12px"><small class="muted" dir="ltr">${esc((getAccount() || {}).email || "")}</small><button class="chip" id="lock-out">تسجيل خروج</button></div>`;
   $("#lang").onclick = () => setLang(LANG === "en" ? "ar" : "en");
   $("#lock-sub").onclick = () => subSheet();
+  $("#lock-out").onclick = () => { logout(); subState.active = false; refreshSub().then(render); };
 }
 render();
 refreshSub().then(() => { render(); scheduleReminders(); const r = getReq(); if (r && r.status === "pending") { startPolling(); resendIfStale(); } else pollActivation().then(c => { if (c) refreshSub().then(render); }); });

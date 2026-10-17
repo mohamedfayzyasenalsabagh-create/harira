@@ -4,6 +4,7 @@ const SUB = {
   dhPub: { x: "kfRSHt6o3Cww6AjS9O5XsHdLfQovchIAupwYW8aWKvw", y: "VyOSTCvGazZkaAfd0Eik7715Gf3tMoo7OnKSBoHgyIg" },
   reqTopic: "harira-req-3bd3211bb1a8ac82",
   actPrefix: "harira-act-",
+  actsTopic: "harira-acts-421447b9281ebd95", // نسخة من كل تفعيل، بتنجمع بملف دائم subs.json
   ntfy: "https://ntfy.sh/",
   wallet: "a36711eeff08f6ce348f796383159a22",
   trialDays: 3,
@@ -15,8 +16,40 @@ const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\
 const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
 const utf8 = s => new TextEncoder().encode(s);
 
-// كود الجهاز: ثابت حتى لو انمسح التطبيق (من أندرويد)، وإلا رقم عشوائي محفوظ
+// ===== الحسابات: الاشتراك مربوط بالحساب (إيميل + كلمة سر)، فبيمشي معك لأي موبايل =====
+function getAccount() { try { return JSON.parse(localStorage.getItem("harira-account") || "null"); } catch (e) { return null; } }
+const isAdmin = () => { try { return !!localStorage.getItem("harira-admin"); } catch (e) { return false; } };
+async function pbkdf2(pass, saltBytes, it, bytes) {
+  const k = await crypto.subtle.importKey("raw", utf8(pass), "PBKDF2", false, ["deriveBits"]);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: saltBytes, iterations: it }, k, bytes * 8));
+}
+const hex = u8 => Array.from(u8, b => b.toString(16).padStart(2, "0")).join("");
+async function sha256hex(s) { return hex(new Uint8Array(await crypto.subtle.digest("SHA-256", utf8(s)))); }
+async function login(emailRaw, pass, name) {
+  const email = String(emailRaw).trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("اكتب إيميل صحيح");
+  if (String(pass).length < 6) throw new Error("كلمة السر لازم تكون ٦ أحرف أو أكتر");
+  // الأدمن: مفاتيح الإدارة مشفّرة بكلمة سره، وما بتنفتح إلا بالإيميل وكلمة السر الصح
+  try {
+    const ak = await (await fetch("admin-keys.json", { cache: "no-cache" })).json();
+    if (ak.eh === await sha256hex(email)) {
+      const key = await crypto.subtle.importKey("raw", await pbkdf2(pass, new Uint8Array([...unb64u(ak.salt), ...utf8(email)]), ak.it, 32), "AES-GCM", false, ["decrypt"]);
+      let keys;
+      try { keys = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64u(ak.iv) }, key, unb64u(ak.ct)))); }
+      catch (e) { throw new Error("كلمة السر غلط"); }
+      localStorage.setItem("harira-admin", JSON.stringify(keys));
+    }
+  } catch (e) { if (e.message === "كلمة السر غلط") throw e; }
+  const id = hex((await pbkdf2(pass, utf8("harira:" + email), 150000, 10)));
+  localStorage.setItem("harira-account", JSON.stringify({ email, id, name: String(name || "").trim() }));
+  ["harira-sub", "harira-sub-cache", "harira-req"].forEach(k => localStorage.removeItem(k));
+  return { admin: isAdmin() };
+}
+function logout() { ["harira-account", "harira-admin", "harira-sub", "harira-sub-cache", "harira-req", "harira-outbox"].forEach(k => { try { localStorage.removeItem(k); } catch (e) {} }); }
+
+// كود الحساب (أو كود الجهاز قبل تسجيل الدخول)
 function deviceId() {
+  const acc = getAccount(); if (acc && acc.id) return acc.id;
   try { if (window.AndroidApp && AndroidApp.deviceId) { const d = AndroidApp.deviceId(); if (d) return d; } } catch (e) {}
   let d = null; try { d = localStorage.getItem("harira-dev"); } catch (e) {}
   if (!d) { d = Array.from(crypto.getRandomValues(new Uint8Array(10)), b => b.toString(16).padStart(2, "0")).join(""); try { localStorage.setItem("harira-dev", d); } catch (e) {} }
@@ -69,7 +102,7 @@ try { const c = JSON.parse(localStorage.getItem("harira-sub-cache") || "null"); 
 }
 subState.trialEnds = trialEnds();
 try { const c = JSON.parse(localStorage.getItem("harira-sub-cache") || "null"); if (c && (c.exp === 0 || c.exp > Date.now())) Object.assign(subState, { active: true, lifetime: c.exp === 0, exp: c.exp }); } catch (e) {}
-const isPremium = () => subState.active || Date.now() < subState.trialEnds;
+const isPremium = () => subState.active || isAdmin() || Date.now() < subState.trialEnds;
 const inTrial = () => !subState.active && Date.now() < subState.trialEnds;
 
 async function applyToken(token) {
@@ -101,7 +134,8 @@ function shrinkTo(file, max, q) {
 async function sendSubRequest({ name, phone, plan, file }) {
   const receipt = await shrinkTo(file, 900, 0.72);
   const id = deviceId();
-  const body = await encryptForAdmin({ t: "req", id, name, phone, plan, ts: Date.now(), receipt, lang: typeof LANG !== "undefined" ? LANG : "ar" });
+  const acc = getAccount() || {};
+  const body = await encryptForAdmin({ t: "req", id, name, phone, email: acc.email || "", plan, ts: Date.now(), receipt, lang: typeof LANG !== "undefined" ? LANG : "ar" });
   const url = SUB.ntfy + SUB.reqTopic + "?title=" + encodeURIComponent("Harira") + "&message=" + encodeURIComponent("New subscription request") + "&filename=req.json";
   const r = await fetch(url, { method: "PUT", body });
   if (!r.ok) throw new Error("ما قدرت ابعت الطلب. تأكد من النت وجرب كمان مرة.");
@@ -117,12 +151,17 @@ async function resendIfStale() {
     saveReq({ sent: Date.now() });
   } catch (e) {}
 }
-// الرد من صاحب التطبيق بيوصل على قناة خاصة بهالجهاز
+// الرد من صاحب التطبيق: فوري على قناة الحساب، ودائم بملف subs.json (لما تسجل دخول من موبايل تاني)
 async function pollActivation() {
+  let changed = false;
+  try {
+    const all = await (await fetch("subs.json", { cache: "no-cache" })).json();
+    const mine = all[deviceId()];
+    if (mine && (await applyToken(mine)).ok) changed = true;
+  } catch (e) {}
   try {
     const res = await fetch(SUB.ntfy + SUB.actPrefix + deviceId() + "/json?poll=1&since=all");
     const lines = (await res.text()).split("\n").filter(Boolean);
-    let changed = false;
     for (const l of lines) {
       let m; try { m = JSON.parse(l); } catch (e) { continue; }
       if (m.event !== "message" || !m.message) continue;
@@ -130,5 +169,5 @@ async function pollActivation() {
       if (out.ok) changed = true;
     }
     return changed;
-  } catch (e) { return false; }
+  } catch (e) { return changed; }
 }

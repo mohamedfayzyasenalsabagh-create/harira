@@ -68,6 +68,8 @@ async function sign(obj) {
 async function sendToken(id, token) {
   const r = await fetch(SUB.ntfy + SUB.actPrefix + id, { method: "POST", body: token });
   if (!r.ok) throw new Error("ما انبعت");
+  // نسخة للسجل الدائم (subs.json) لحتى يرجع الاشتراك إذا سجّل دخول من موبايل تاني
+  fetch(SUB.ntfy + SUB.actsTopic, { method: "POST", body: token }).catch(() => {});
 }
 
 // جلب الطلبات الجديدة
@@ -121,39 +123,37 @@ async function grant(idRaw, plan) {
   try {
     const tok = await sign({ t: "ok", id, exp, plan, iat: Date.now() });
     await sendToken(id, tok);
-    SUBS[id] = { ...(SUBS[id] || {}), exp, plan, at: Date.now(), token: tok };
+    SUBS[id] = { ...(SUBS[id] || {}), exp, plan, at: Date.now() };
     store("harira-admin-subs", SUBS); toast(plan === "stop" ? "توقف الاشتراك" : "تم، بيوصله خلال ثواني"); render();
   } catch (e) { toast("ما قدرت ابعت. جرّب كمان مرة"); }
 }
 
 function render() {
   const m = $("#m");
-  if (!KEYS) { m.innerHTML = `<h1>حريره · الإدارة</h1><div class="card"><b>هالموبايل مو مفعّل كإدارة.</b><p class="muted" style="margin:0">افتح رابط الإعداد الخاص (اللي فيه المفتاح) مرة وحدة على الموبايل اللي بدك تدير منه.</p></div>`; return; }
+  if (!KEYS) { m.innerHTML = `<h1>حريره · الإدارة</h1><div class="card"><b>لازم تسجل دخول كأدمن.</b><p class="muted" style="margin:0">افتح تطبيق حريره وسجّل دخول بإيميل وكلمة سر الأدمن.</p><a class="btn" href="./" style="text-align:center;text-decoration:none">فتح التطبيق</a></div>`; return; }
   const list = Object.entries(REQS).sort((a, b) => (a[1].status === "new" ? 0 : 1) - (b[1].status === "new" ? 0 : 1) || b[1].ts - a[1].ts);
   const pending = list.filter(([, r]) => r.status === "new");
   const subs = Object.entries(SUBS).sort((a, b) => (b[1].at || 0) - (a[1].at || 0));
   const now = Date.now();
-  m.innerHTML = `<div class="row between"><h1>حريره · الإدارة</h1><button class="btn ghost" id="refresh">تحديث</button></div>
+  m.innerHTML = `<div class="row between"><h1>حريره · الإدارة</h1><span class="row"><button class="btn ghost" id="refresh">تحديث</button><a class="btn ghost" href="./" style="text-decoration:none">رجوع للتطبيق</a></span></div>
   <div class="card"><div class="row between"><h2>طلبات الاشتراك</h2><span class="pill ${pending.length ? "p-new" : "p-ok"}">${pending.length} جديد</span></div>
     ${list.length ? list.map(([rid, r]) => `<div class="card" style="gap:8px">
       <div class="row between"><b>${esc(r.name)}</b><span class="pill ${r.status === "new" ? "p-new" : r.status === "ok" ? "p-ok" : "p-no"}">${r.status === "new" ? "بانتظارك" : r.status === "ok" ? "مفعّل · " + fmtDate(r.exp) : "مرفوض"}</span></div>
+      ${r.email ? `<small class="muted">✉️ ${esc(r.email)}</small>` : ""}
       <small class="muted">📞 <a href="https://wa.me/${esc(String(r.phone).replace(/\D/g, ""))}" target="_blank" rel="noopener">${esc(r.phone)}</a> · ${new Date(r.ts).toLocaleString("ar-SY")} · كود: <code>${esc(shortCode(r.id))}</code></small>
       ${r.receipt ? `<img class="rc" src="${r.receipt}" alt="صورة الإيصال">` : ""}
       ${r.status === "new" ? `<div class="row"><button class="btn" data-d="${rid}|m1">موافقة شهر</button><button class="btn ghost" data-d="${rid}|m3">٣ أشهر</button><button class="btn ghost" data-d="${rid}|y1">سنة</button><button class="btn ghost" data-d="${rid}|life">مجاني مدى الحياة</button><button class="btn red" data-d="${rid}|rej">رفض</button></div>` : ""}
     </div>`).join("") : `<p class="muted" style="margin:0">ما في طلبات. أول ما حدا يبعت إيصال بيبيّن هون.</p>`}
   </div>
-  <div class="card"><h2>تفعيل يدوي</h2><small class="muted">المستخدم بيلاقي كود جهازه بصفحة الاشتراك بالتطبيق.</small>
-    <input id="gid" placeholder="كود الجهاز" dir="ltr">
+  <div class="card"><h2>تفعيل يدوي</h2><small class="muted">المستخدم بيلاقي كود حسابه بصفحة الاشتراك بالتطبيق.</small>
+    <input id="gid" placeholder="كود الحساب" dir="ltr">
     <div class="row"><button class="btn" data-g="m1">شهر</button><button class="btn ghost" data-g="m3">٣ أشهر</button><button class="btn ghost" data-g="y1">سنة</button><button class="btn ghost" data-g="life">مجاني مدى الحياة</button><button class="btn red" data-g="stop">إيقاف</button></div></div>
   <div class="card"><div class="row between"><h2>المشتركين</h2><span class="muted">${subs.filter(([, s]) => s.exp === 0 || s.exp > now).length} فعّال</span></div>
     ${subs.length ? subs.map(([id, s]) => `<div class="row between" style="border-top:1px solid var(--line);padding-top:8px"><span><b>${esc(s.name || "—")}</b><br><small class="muted"><code>${esc(shortCode(id))}</code> · ${s.exp === 0 ? "مدى الحياة" : s.exp > now ? "لحد " + fmtDate(s.exp) : "منتهي"}</small></span>
       <span class="row"><button class="btn ghost" data-s="${id}|m1">+شهر</button><button class="btn ghost" data-s="${id}|life">مدى الحياة</button><button class="btn red" data-s="${id}|stop">إيقاف</button></span></div>`).join("") : `<p class="muted" style="margin:0">لسا ما في مشتركين.</p>`}
   </div>
-  <div class="card"><h2>إشعارات الطلبات على موبايلك</h2>
-    <small class="muted">نزّل تطبيق <b>ntfy</b> من المتجر، كبّس + واكتب اسم القناة هاد، وكل ما يجي طلب جديد بيوصلك إشعار. بعدها افتح هالصفحة لتوافق.</small>
-    <div class="row"><code id="topic">${SUB.reqTopic}</code><button class="btn ghost" id="copy">نسخ</button></div></div>`;
+`;
   $("#refresh").onclick = async () => { toast("عم حدّث…"); await fetchReqs(); render(); };
-  $("#copy").onclick = () => { navigator.clipboard.writeText(SUB.reqTopic).then(() => toast("انسخ"), () => toast(SUB.reqTopic)); };
   document.querySelectorAll("[data-d]").forEach(b => b.onclick = () => { const [rid, p] = b.dataset.d.split("|"); b.disabled = true; decide(rid, p); });
   document.querySelectorAll("[data-g]").forEach(b => b.onclick = () => grant($("#gid").value, b.dataset.g));
   document.querySelectorAll("[data-s]").forEach(b => b.onclick = () => { const [id, p] = b.dataset.s.split("|"); grant(id, p); });

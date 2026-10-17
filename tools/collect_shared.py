@@ -32,3 +32,29 @@ shared = shared[-3000:]
 json.dump(shared, open(shared_f, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
 if last: open(since_f, "w").write(last)
 print(f"messages={len(lines)} added={added} total={len(shared)}")
+
+# ===== التفعيلات: منجمعها بـ web/subs.json (لكل حساب آخر تفعيل موقّع) =====
+from cryptography.hazmat.primitives.asymmetric import ec, utils
+from cryptography.hazmat.primitives import hashes
+import re as _re
+sub_js = open("web/sub.js", encoding="utf-8").read()
+sp = _re.search(r'signPub: \{ x: "([^"]+)", y: "([^"]+)" \}', sub_js)
+acts = _re.search(r'actsTopic: "([^"]+)"', sub_js).group(1)
+d64 = lambda s: base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+pub = ec.EllipticCurvePublicNumbers(int.from_bytes(d64(sp.group(1)), "big"), int.from_bytes(d64(sp.group(2)), "big"), ec.SECP256R1()).public_key()
+subs_f = "web/subs.json"
+subs = json.load(open(subs_f)) if os.path.exists(subs_f) else {}
+alines = urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{acts}/json?poll=1&since=all", headers={"User-Agent": "harira-collector"}), timeout=60).read().decode().splitlines()
+na = 0
+for line in alines:
+    try:
+        m = json.loads(line); tok = m["message"].strip(); p_, s_ = tok.split(".")
+        sig = d64(s_); pub.verify(utils.encode_dss_signature(int.from_bytes(sig[:32], "big"), int.from_bytes(sig[32:], "big")), p_.encode(), ec.ECDSA(hashes.SHA256()))
+        data = json.loads(d64(p_))
+        old = subs.get(data["id"])
+        if old and json.loads(d64(old.split(".")[0]))["iat"] >= data["iat"]: continue
+        subs[data["id"]] = tok; na += 1
+    except Exception:
+        continue
+json.dump(subs, open(subs_f, "w"), separators=(",", ":"))
+print(f"activations={len(alines)} new={na} accounts={len(subs)}")

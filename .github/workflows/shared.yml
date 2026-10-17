@@ -15,12 +15,12 @@ jobs:
         id: c
         run: |
           python3 tools/collect_shared.py | tee out.txt
-          if git diff --quiet web/ml/shared.json; then echo "changed=false" >> "$GITHUB_OUTPUT"; else echo "changed=true" >> "$GITHUB_OUTPUT"; fi
+          if git diff --quiet web/ml/shared.json web/subs.json; then echo "changed=false" >> "$GITHUB_OUTPUT"; else echo "changed=true" >> "$GITHUB_OUTPUT"; fi
       - name: حفظ
         run: |
           git config user.name "harira-bot"; git config user.email "bot@harira.app"
-          git add web/ml/shared.json tools/ntfy_since.txt 2>/dev/null || git add web/ml/shared.json
-          git diff --cached --quiet || (git commit -qm "تعلّم مشترك: $(cat out.txt)" && git push)
+          git add web/ml/shared.json web/subs.json tools/ntfy_since.txt 2>/dev/null || git add web/ml/shared.json web/subs.json
+          git diff --cached --quiet || (git commit -qm "تعلّم مشترك وتفعيلات: $(cat out.txt | tr '\n' ' ')" && git push)
       - name: نشر الموقع
         if: steps.c.outputs.changed == 'true'
         run: sed -i "s/harira-v[0-9a-z]*/harira-${GITHUB_SHA::7}s/" web/sw.js
