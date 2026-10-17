@@ -16,13 +16,22 @@ adb shell settings put global always_finish_activities 1
 adb shell am force-stop com.harira.app; adb shell am start -n com.harira.app/.MainActivity >/dev/null; sleep 25
 W0=$(adb shell wm size | grep -o '[0-9]*x[0-9]*' | tail -1); X0=${W0%x*}; Y0=${W0#*x}
 adb shell input tap $((X0/6)) $((Y0-Y0/20)); sleep 3; shot c1-photo-tab
-adb shell input tap $((X0*70/100)) $((Y0*31/100)); sleep 6; shot c2-camera
-adb shell input keyevent 27; sleep 5; shot c3-after-shutter
-adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml $OUT/ui-camera.xml >/dev/null 2>&1
-# زر التأكيد بتطبيق الكاميرا: منلاقيه من شجرة الواجهة
-B=$(grep -o 'resource-id="[^"]*\(done\|confirm\|ok\|shutter\)[^"]*"[^>]*bounds="\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]"' $OUT/ui-camera.xml | grep -iv shutter | head -1 | grep -o 'bounds="[^"]*"' | grep -o '[0-9]*' | tr '\n' ' ')
-echo "confirm bounds: $B" >> $R
-if [ -n "$B" ]; then set -- $B; adb shell input tap $((($1+$3)/2)) $((($2+$4)/2)); fi
+# الضغط على عنصر حسب النص أو المعرّف من شجرة الواجهة
+tapui(){ adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml $OUT/ui-$2.xml >/dev/null 2>&1
+  local bb=$(python3 - "$OUT/ui-$2.xml" "$1" <<'PY'
+import re,sys
+x=open(sys.argv[1],encoding="utf-8").read()
+for n in re.findall(r'<node [^>]*>',x):
+    if re.search(sys.argv[2],n):
+        m=re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"',n)
+        if m:
+            a,b,c,d=map(int,m.groups()); print((a+c)//2,(b+d)//2); break
+PY
+); echo "tap $2 ($1): ${bb:-not found}" >> $R; [ -n "$bb" ] && adb shell input tap $bb; }
+tapui 'text="صوّر"' btn; sleep 6; shot c2-camera
+tapui 'resource-id="[^"]*shutter[^"]*"|content-desc="[^"]*(Shutter|shutter|Take photo|Capture)[^"]*"' shutter || adb shell input keyevent 27
+sleep 5; shot c3-after-shutter
+tapui 'resource-id="[^"]*(done|confirm|ok_button)[^"]*"|content-desc="[^"]*(Done|OK|Confirm)[^"]*"' confirm
 sleep 25; shot c4-back-in-app
 adb shell settings put global always_finish_activities 0
 # تبويب أضف أكلة (الوسط تقريباً بأسفل الشاشة)
