@@ -1,0 +1,7 @@
+locked: خلصت التجربة المجانية
+request: "pending"
+admin sees: ['تجربة'] receipt imgs: 1
+user after approve: 👑 أدمن
+collector: messages=0 added=0 total=0 | activations=1 new=1 accounts=1
+durable subs.json has account: True
+errors: []
