@@ -2,7 +2,7 @@ name: بناء تطبيق أندرويد
 on:
   push:
     branches: [main]
-    paths: ["android/**", "web/ml/**", ".github/workflows/android.yml"]
+    paths: ["android/**", ".github/workflows/android.yml"]
   workflow_dispatch:
 permissions:
   contents: write
@@ -15,8 +15,8 @@ jobs:
         with: { distribution: temurin, java-version: "17" }
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: "8.9" }
-      - name: نسخ محلل الصور لجوّا التطبيق
-        run: mkdir -p android/app/src/main/assets/ml && cp -r web/ml/vision_bundle.mjs web/ml/food.tflite web/ml/general.tflite web/ml/embed.tflite web/ml/wasm android/app/src/main/assets/ml/
+      # ما منحط محلل الصور جوّا التطبيق: الملف الكبير (٣٦ ميغا) كان يخرب بالتنزيل عند بعض الناس ("التطبيق ليس مثبتاً").
+      # محلل الصور بينزل مرة وحدة أول ما يستعمله وبينحفظ بالموبايل.
       - name: بناء APK الموقّع
         env:
           VERSION_CODE: "${{ github.run_number }}"
@@ -24,6 +24,7 @@ jobs:
           set -o pipefail
           gradle -p android assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
           cp android/app/build/outputs/apk/release/app-release.apk harira.apk
+          ls -la harira.apk
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: app-v${{ github.run_number }}

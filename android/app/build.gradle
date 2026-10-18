@@ -16,6 +16,8 @@ android {
             storePassword 'T34W1dly8M2dTA8WS8YxZ2jt'
             keyAlias 'harira'
             keyPassword 'T34W1dly8M2dTA8WS8YxZ2jt'
+            enableV1Signing true // توقيع قديم كمان، لبعض الموبايلات ومدراء الملفات
+            enableV2Signing true
         }
     }
     buildTypes {
