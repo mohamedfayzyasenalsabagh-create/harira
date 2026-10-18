@@ -627,7 +627,7 @@ function renderPhoto() {
       <p class="note">التعرّف بيصير على موبايلك نفسه، بدون نت وبدون حد يومي. صوّر أكلة وحدة بكل صورة لنتيجة أدق.</p>`;
   } else {
     let inner = "";
-    if (p.state === "loading") inner = `<div class="row" style="justify-content:center;padding:18px"><div class="spinner"></div><span>${p.first ? "عم جهّز المحلل لأول مرة…" : "عم اتعرّف على الأكلة…"}</span></div>`;
+    if (p.state === "loading") inner = `<div class="row" style="justify-content:center;padding:18px"><div class="spinner"></div><span>${p.first ? "عم جهّز الذكاء الاصطناعي لأول مرة (مرة وحدة بس)…" : "عم اتعرّف على الأكلة…"}</span></div>`;
     else if (p.state === "cloud-loading") inner = `<div class="row" style="justify-content:center;padding:18px"><div class="spinner"></div><span>عم حلل أونلاين، ممكن ياخد دقيقة…</span></div>
       <button class="btn ghost" id="cancel-cloud">رجوع للاقتراحات</button>`;
     else if (p.state === "error") inner = `<p style="color:var(--tomato);margin:0">${esc(p.error)}</p>
@@ -718,7 +718,7 @@ function renderPhoto() {
   }
 }
 
-// تحميل موديل الأكل مرة وحدة (بالتطبيق بيجي من جوّا الـ APK، وبالمتصفح بينحفظ بعد أول مرة)
+// تحميل الذكاء الاصطناعي (موديلات الأكل) مرة وحدة من السيرفر، وبعدها بينحفظ بالموبايل ويشتغل بدون نت
 let clsPromise = null;
 function loadScript(src) { return new Promise((ok, bad) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); }); }
 // تلات موديلات من جوجل بتشتغل على الموبايل: طبخات (٢٠٠٠ صنف)، عام (فواكه وخضار ومكونات)، وبصمة الصورة للتعلّم
@@ -984,6 +984,8 @@ function renderLocked() {
 if (typeof applyPlan === "function") applyPlan();
 render();
 registerUser();
+// منجهّز الذكاء الاصطناعي بالخلفية بعد ما يفتح التطبيق، ليكون جاهز قبل أول صورة
+setTimeout(() => { try { if (getAccount() && !isAdmin() && isPremium() && navigator.onLine) getModels().catch(() => {}); } catch (e) {} }, 6000);
 refreshSub().then(() => { render(); scheduleReminders(); const r = getReq(); if (r && r.status === "pending") { startPolling(); resendIfStale(); } else pollActivation().then(c => { if (c) refreshSub().then(render); }); });
 
 // تحديث تلقائي: إذا نزل تعديل جديد والتطبيق مفتوح بالخلفية، منعيد تحميله أول ما يرجع المستخدم عليه
