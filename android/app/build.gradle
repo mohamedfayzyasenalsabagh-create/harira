@@ -4,7 +4,7 @@ android {
     compileSdk 34
     defaultConfig {
         applicationId 'com.harira.app'
-        minSdk 24
+        minSdk 21 // أندرويد ٥ وطالع، للموبايلات القديمة
         targetSdk 34
         versionCode Integer.parseInt(System.getenv('VERSION_CODE') ?: '1')
         versionName '1.0.' + (System.getenv('VERSION_CODE') ?: '1')

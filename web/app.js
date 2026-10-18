@@ -228,7 +228,20 @@ const APK_URL = "https://github.com/mohamedfayzyasenalsabagh-create/harira/relea
 const wrapperVer = +((navigator.userAgent.match(/HariraApp\/(\d+)/) || [])[1] || 0);
 let latestWrapper = 0;
 if (wrapperVer) fetch("app-version.json", { cache: "no-cache" }).then(r => r.json()).then(j => { latestWrapper = +j.wrapper || 0; if (latestWrapper > wrapperVer && tab === "today") render(); }).catch(() => {});
+// تثبيت من الموقع (للموبايلات اللي ما بيقبل عليها ملف التطبيق): زر "ثبّت" بيضيف حريره للشاشة الرئيسية متل أي تطبيق
+let installEvt = null;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; const a = document.activeElement; if (!document.querySelector(".sheet-bg") && !(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName))) render(); });
+window.addEventListener("appinstalled", () => { installEvt = null; toast("✓ انضافت حريره للشاشة الرئيسية"); render(); });
+document.addEventListener("click", async e => {
+  if (!e.target.closest || !e.target.closest("#inst-go") || !installEvt) return;
+  installEvt.prompt(); try { await installEvt.userChoice; } catch (x) {} installEvt = null; render();
+});
+function installBanner() {
+  if (!installEvt) return "";
+  return `<div class="note row between" style="gap:8px;margin-bottom:12px"><span>📲 ثبّت حريره على شاشتك الرئيسية</span><button class="chip" id="inst-go">ثبّت</button></div>`;
+}
 function updateBanner() {
+  const ib = installBanner(); if (ib) return ib;
   let hidden = false; try { hidden = !!sessionStorage.getItem("harira-upd-x"); } catch (e) {}
   if (!wrapperVer || latestWrapper <= wrapperVer || hidden) return "";
   return `<div class="note row between" style="gap:8px;margin-bottom:12px"><span>في نسخة جديدة من التطبيق</span>
@@ -939,6 +952,7 @@ function render() {
 // تسجيل الدخول: نفس الشاشة للحساب الجديد والقديم (الحساب = الإيميل + كلمة السر)
 function renderLogin() {
   app.innerHTML = `<div class="head"><h1>حريره</h1><button class="chip" id="lang">${LANG === "en" ? "ع" : "EN"}</button></div>
+  ${installBanner()}
   <div class="card stack" style="align-items:stretch">
     <img src="icon-192.png" alt="" width="84" height="84" style="border-radius:22px;align-self:center">
     <h2 style="text-align:center">أهلاً بحريره</h2>
