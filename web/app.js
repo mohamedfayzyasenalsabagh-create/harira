@@ -547,7 +547,7 @@ function quickRow() {
 }
 function drawList() {
   const nq = norm(query.trim());
-  const nm = f => norm(f.n) + " " + norm(foodName(f.n));
+  const nm = f => norm(f.n) + " " + norm(foodName(f.n)) + (f.tg ? " " + norm(f.tg) : "");
   let list = FOODS.filter(f => (cat === "الكل" || f.c === cat) && (!nq || nm(f).includes(nq)));
   if (nq) list.sort((a, b) => nm(a).indexOf(nq) - nm(b).indexOf(nq));
   $("#list").innerHTML = list.length ? list.slice(0, 120).map(f => `<button class="food" data-id="${f.id}">
@@ -579,8 +579,10 @@ function customSheet(barcode) {
   });
 }
 
+// تحلية المشروبات: لكل كاسة/فنجان (بتتضاعف مع الكمية)
+const SWEET = [["بدون سكر", 0, 0], ["محلّي (٠ سعرة)", 0, 0], ["نص معلقة سكر", 8, 2], ["معلقة سكر", 16, 4], ["٢ معلقة سكر", 32, 8], ["٣ معالق سكر", 48, 12], ["معلقة عسل", 21, 5.7]];
 function qtySheet(f, src, g0) {
-  let g = g0 || f.ug;
+  let g = g0 || f.ug, sw = 0;
   let meal = mealPick || guessMeal();
   sheet(`<div class="row between"><h2>${esc(f.n)}</h2><button class="icon-btn" id="fav" aria-label="مفضلة" aria-pressed="${isFav(f.n)}" style="color:${isFav(f.n) ? "var(--saffron)" : "var(--muted)"}">${isFav(f.n) ? "★" : "☆"}</button></div>
     <span class="muted num" style="margin-top:-8px">${fmt(f.k)} سعرة/١٠٠غ</span>
@@ -590,15 +592,19 @@ function qtySheet(f, src, g0) {
     <div class="quick">
       <button class="chip" data-g="${f.ug}">١ ${esc(f.u)}</button><button class="chip" data-g="${f.ug * 2}">٢ ${esc(f.u)}</button>
       <button class="chip" data-g="${r0(f.ug / 2)}">نص ${esc(f.u)}</button><button class="chip" data-g="100">١٠٠ غ</button></div>
+    ${f.sw ? `<label class="muted">التحلية (للكاسة)</label><div class="quick" id="sweet">${SWEET.map(([l], i) => `<button class="chip" data-sw="${i}" aria-pressed="${i === 0}">${l}</button>`).join("")}</div>` : ""}
     <div class="result" id="res"></div>
     <label class="muted" for="meal">الوجبة</label>
     <select id="meal">${MEALS.map(m => `<option value="${m}" ${m === meal ? "selected" : ""}>${m}</option>`).join("")}</select>
     <button class="btn" id="add">أضف للسجل</button>`, el => {
     const gr = $("#gr", el);
     $("#fav", el).onclick = () => { toggleFav(f.n); const on = isFav(f.n), b = $("#fav", el); b.textContent = on ? "★" : "☆"; b.style.color = on ? "var(--saffron)" : "var(--muted)"; toast(on ? "انضافت للمفضلة" : "انشالت من المفضلة"); };
+    const calcSw = () => { const v = calc(f, g), [, k, cb] = SWEET[sw], n = f.ug ? g / f.ug : 1; return { ...v, k: v.k + k * n, cb: v.cb + cb * n }; };
+    const swName = () => sw === 0 ? f.n : sw === 1 ? f.n + " (محلّي)" : f.n + " + " + SWEET[sw][0];
+    el.querySelectorAll("[data-sw]").forEach(b => b.onclick = () => { sw = +b.dataset.sw; el.querySelectorAll("[data-sw]").forEach(x => x.setAttribute("aria-pressed", x === b)); upd(); });
     const upd = () => {
       g = Math.max(0, +gr.value || 0);
-      const v = calc(f, g);
+      const v = calcSw();
       $("#res", el).innerHTML = `<div class="kc"><b class="num">${fmt(v.k)}</b><small>سعرة</small></div>
         <div><b class="num">${fmt1(v.p)}</b><small>بروتين غ</small></div><div><b class="num">${fmt1(v.cb)}</b><small>كربو غ</small></div><div><b class="num">${fmt1(v.f)}</b><small>دهون غ</small></div>`;
       $("#add", el).disabled = g <= 0;
@@ -609,12 +615,12 @@ function qtySheet(f, src, g0) {
     $("#plus", el).onclick = () => { gr.value = (+gr.value || 0) + step; upd(); };
     el.querySelectorAll("[data-g]").forEach(b => b.onclick = () => { gr.value = b.dataset.g; upd(); });
     $("#add", el).onclick = () => {
-      const v = calc(f, g);
+      const v = calcSw();
       const fromPhoto = !!learnCtx;
       query = "";
       if (learnCtx) { learn(learnCtx.emb, [{ f, g }]); learnCtx = null; }
-      addEntry({ n: f.n, g, ...v, meal: $("#meal", el).value, ...(src || fromPhoto ? { src: "photo" } : {}) });
-      closeSheet(); toast(`انضافت: ${f.n} (${fmt(v.k)} سعرة)`);
+      addEntry({ n: swName(), g, ...v, meal: $("#meal", el).value, ...(src || fromPhoto ? { src: "photo" } : {}) });
+      closeSheet(); toast(`انضافت: ${swName()} (${fmt(v.k)} سعرة)`);
       mealPick = null;
       if (src === "photo" || fromPhoto) { photo = null; go("today"); }
     };
