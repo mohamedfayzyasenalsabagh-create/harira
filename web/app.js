@@ -548,7 +548,7 @@ function quickRow() {
 function drawList() {
   const nq = norm(query.trim());
   const nm = f => norm(f.n) + " " + norm(foodName(f.n)) + (f.tg ? " " + norm(f.tg) : "");
-  let list = FOODS.filter(f => (cat === "الكل" || f.c === cat) && (!nq || nm(f).includes(nq)));
+  let list = FOODS.filter(f => (cat === "الكل" || f.c === cat || (cat === "مشروبات" && f.dr)) && (!nq || nm(f).includes(nq)));
   if (nq) list.sort((a, b) => nm(a).indexOf(nq) - nm(b).indexOf(nq));
   $("#list").innerHTML = list.length ? list.slice(0, 120).map(f => `<button class="food" data-id="${f.id}">
       <span class="t">${esc(f.n)}<small>${esc(f.c)} · ١ ${esc(f.u)} ≈ ${fmt(f.ug)} غ</small></span>
