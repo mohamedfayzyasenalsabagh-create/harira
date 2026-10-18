@@ -104,11 +104,12 @@ function renderToday() {
   const name = (prof().name || "").split(" ")[0];
   const h = new Date().getHours(), hello = h < 12 ? "صباح الخير" : h < 18 ? "نهارك سعيد" : "مسا الخير";
   app.innerHTML = `
-  ${updateBanner()}
+  ${updateBanner()}${renewBanner()}
   <div class="head"><div style="min-width:0"><small class="muted">${hello}${name ? "،" : ""}</small><h1 style="font-size:24px">${name ? esc(name) : "حريره"} ${streak() >= 2 ? `<span class="streak num">🔥${fmt(streak())}</span>` : ""}</h1></div>
     <div class="row" style="gap:6px"><button class="chip" id="subchip" style="${subState.active || isAdmin() ? "" : "background:var(--saffron);border-color:var(--saffron);color:#1E2A20"}">${subBadge()}</button>
     <button class="icon-btn" id="bell" aria-label="التذكيرات">🔔</button></div></div>
   <div class="datebar" style="justify-content:space-between;margin-bottom:12px"><button class="icon-btn" id="prev" aria-label="اليوم السابق">${LANG === "en" ? "‹" : "›"}</button><b>${dayLabel()}</b><button class="icon-btn" id="next" aria-label="اليوم التالي" ${isToday ? "disabled style=\"opacity:.35\"" : ""}>${LANG === "en" ? "›" : "‹"}</button></div>
+  ${isToday && [5, 6].includes(new Date().getDay()) ? reportCard() : ""}
   <div class="stack">
     <div class="card dash">
       <div class="ring">
@@ -271,13 +272,15 @@ function requirePremium(what) {
 function subSheet(reason) {
   const req = getReq(), id = deviceId(), price = SUB.config.price;
   let body;
-  if (subState.active) {
+  const renewing = renewDue();
+  if (subState.active && !renewing) {
     body = `<div class="note">⭐ اشتراكك فعّال ${subState.lifetime ? "مدى الحياة" : "لحد " + new Date(subState.exp).toLocaleDateString(LOC, { day: "numeric", month: "long", year: "numeric" })}. شكراً إلك!</div>`;
   } else if (req && req.status === "pending") {
     body = `<div class="note">⏳ طلبك وصل وعم ينراجع. أول ما ينقبل بيتفعّل التطبيق لحاله، وما في داعي تبعت مرة تانية.</div>
       <button class="btn ghost" id="sub-check">تحقق هلق</button>`;
   } else {
     body = `${reason ? `<div class="note">«${esc(reason)}» للمشتركين. ${inTrial() ? "" : "خلصت التجربة المجانية."}</div>` : ""}
+      ${renewing ? `<div class="note" style="background:var(--tomato-soft)">⏳ اشتراكك بيخلص ${new Date(subState.exp).toLocaleDateString(LOC, { day: "numeric", month: "long" })}. جدّد هلق، والمدة الجديدة بتنضاف على اللي باقي.</div>` : ""}
       <ul style="margin:0;padding-inline-start:20px;line-height:1.9">${PREMIUM_FEATURES.map(f => `<li>${f}</li>`).join("")}</ul>
       ${price ? `<div class="row between"><b>الاشتراك الشهري</b><b class="num" style="color:var(--herb);font-size:20px">${esc(price)} ${esc(SUB.config.currency)}</b></div>` : ""}
       ${req && req.status === "rejected" ? `<div class="note" style="background:var(--tomato-soft)">طلبك السابق ما انقبل${req.why ? ": " + esc(req.why) : ""}. تأكد من الإيصال وابعت من جديد.</div>` : ""}
@@ -291,7 +294,7 @@ function subSheet(reason) {
       <img id="s-prev" alt="" style="display:none;max-height:180px;object-fit:contain;border-radius:12px">
       <button class="btn" id="s-send">ابعت الطلب</button>`;
   }
-  sheet(`<h2>${subState.active ? "اشتراكك" : "اشترك بحريره"}</h2>${body}
+  sheet(`<h2>${renewing ? "جدّد اشتراكك" : subState.active ? "اشتراكك" : "اشترك بحريره"}</h2>${body}
     ${supportBox()}
     <div class="row between"><small class="muted" dir="ltr">${esc((getAccount() || {}).email || "")}</small><button class="chip" id="logout">تسجيل خروج</button></div>
 `, el => {
@@ -378,6 +381,7 @@ function scheduleReminders() {
     }
     for (let i = list.length - 1; i >= 0; i--) if (list[i].at <= now) list.splice(i, 1);
   }
+  try { list.push(...extraReminders()); } catch (e) {}
   try { AndroidApp.setReminders(JSON.stringify(list)); } catch (e) {}
 }
 function remindersSheet() {

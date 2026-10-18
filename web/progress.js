@@ -71,6 +71,7 @@ function renderProgress() {
       <div class="row between"><span>معدّل المي</span><b class="num">${fmt1(water / 7)} <small class="muted">كاسة/يوم</small></b></div>
       <div class="row between"><span>حرق الرياضة</span><b class="num">${fmt(burned)} <small class="muted">سعرة</small></b></div>
       <div class="row between"><span>أيام سجّلت فيها</span><b class="num">${fmt(kDays)}/٧</b></div></div>
+    ${reportCard()}
     ${weekCard()}
     <div class="card stack" style="gap:8px"><div class="row between"><h2>قياسات الجسم</h2><button class="chip" id="pg-m">+ قياس</button></div>
       ${Object.keys(m).length ? `<div class="meas-grid">${MEASURES.filter(([k]) => m[k]).map(([k, l]) => { const d = m0[k] ? m[k] - m0[k] : 0; return `<div><small class="muted">${l}</small><b class="num">${fmt1(m[k])}<i> سم</i></b>${d ? `<small class="num" style="color:${d < 0 ? "var(--herb)" : "var(--tomato)"}">${d > 0 ? "+" : ""}${fmt1(d)}</small>` : ""}</div>`; }).join("")}</div>`

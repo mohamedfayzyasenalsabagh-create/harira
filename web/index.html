@@ -29,6 +29,13 @@
   --saffron:#E8B34A; --lentil:#C99A6B; --water:#6FB1E0; color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
+.score-ring{--v:0;width:46px;height:46px;flex:none;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:15px;background:radial-gradient(closest-side,var(--card) 76%,transparent 78%),conic-gradient(var(--herb) calc(var(--v)*1%),var(--line) 0)}
+.score-ring.big{width:76px;height:76px;font-size:24px;font-family:var(--display)}
+.rbars{position:relative;display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;padding-bottom:20px;margin-top:6px}
+.rbars::before{content:"";position:absolute;inset-inline:0;bottom:calc(20px + var(--g) * 1px);border-top:1.5px dashed var(--saffron)}
+.rb{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100px;position:relative}
+.rb i{width:100%;max-width:30px;border-radius:6px 6px 0 0;display:block}
+.rb small{position:absolute;bottom:-20px;font-size:11px;color:var(--muted)}
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--body);-webkit-tap-highlight-color:transparent}
 button,input,select{font:inherit;color:inherit}
@@ -242,6 +249,7 @@ nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--card
 <script src="profile.js"></script>
 <script src="workouts.js"></script>
 <script src="progress.js"></script>
+<script src="report.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
