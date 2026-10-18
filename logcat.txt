@@ -1,0 +1,80 @@
+10-18 06:31:23.565  6715  6715 I AndroidRuntime: VM exiting with result code 0, cleanup skipped.
+10-18 06:31:23.619  6732  6732 I AndroidRuntime: VM exiting with result code 0, cleanup skipped.
+10-18 06:31:23.661  6749  6749 I AndroidRuntime: VM exiting with result code 0, cleanup skipped.
+10-18 06:31:23.701  6766  6766 I AndroidRuntime: VM exiting with result code 0, cleanup skipped.
+10-18 06:32:31.702   481  2898 I ActivityManager: Force stopping com.harira.app appid=10174 user=0: from pid 7031
+10-18 06:32:31.708   481  2898 I ActivityManager: Killing 3645:com.harira.app/u0a174 (adj 0): stop com.harira.app due to from pid 7031
+10-18 06:32:31.715  3724  3724 I cr_ChildProcessService: Destroying ChildProcessService pid=3724
+10-18 06:32:31.718   481  2898 I ActivityManager: Killing 3724:com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0/u0a174i0 (adj 0): isolated not needed
+10-18 06:32:31.720   481  2898 W ActivityTaskManager: Force removing ActivityRecord{b8eec44 u0 com.harira.app/.MainActivity} t9 f}}: app died, no saved state
+10-18 06:32:31.737   481   689 D ConnectivityService: releasing NetworkRequest [ REQUEST id=101, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10174 RequestorUid: 10174 RequestorPkg: com.harira.app UnderlyingNetworks: Null] ] (release request)
+10-18 06:32:31.760   481  2898 W WindowManager: Exception thrown during dispatchAppVisibility Window{29608ae u0 com.harira.app/com.harira.app.MainActivity}
+10-18 06:32:31.767   481  2898 W InputManager-JNI: Input channel object '29608ae com.harira.app/com.harira.app.MainActivity (client)' was disposed without first being removed with the input manager!
+10-18 06:32:31.849   481   809 V ActivityManager: Got obituary of 3645:com.harira.app
+10-18 06:32:31.852   970   970 D CarrierSvcBindHelper: onHandleForceStop: [com.harira.app]
+10-18 06:32:31.921   481   556 I ActivityTaskManager: START u0 {flg=0x10000000 cmp=com.harira.app/.MainActivity} from uid 2000
+10-18 06:32:32.017   481   515 I ActivityManager: Start proc 7043:com.harira.app/u0a174 for next-top-activity {com.harira.app/com.harira.app.MainActivity}
+10-18 06:32:32.020   481   810 D CoreBackPreview: Window{70bbe58 u0 Splash Screen com.harira.app}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@3125c17, mPriority=0}
+10-18 06:32:32.067  7043  7043 I com.harira.app: Using CollectorTypeCC GC.
+10-18 06:32:32.081  7043  7043 W com.harira.app: Unexpected CPU variant for x86: x86_64.
+10-18 06:32:32.081  7043  7043 W com.harira.app: Known variants: atom, sandybridge, silvermont, kabylake, default
+10-18 06:32:32.133  7043  7043 D nativeloader: Configuring classloader-namespace for other apk /data/app/~~vcgdjMSE6S4oIvOKZNKDgw==/com.harira.app-3MKbUShL1l9MieYN70oofA==/base.apk. target_sdk_version=34, uses_libraries=, library_path=/data/app/~~vcgdjMSE6S4oIvOKZNKDgw==/com.harira.app-3MKbUShL1l9MieYN70oofA==/lib/x86_64, permitted_path=/data:/mnt/expand:/data/user/0/com.harira.app
+10-18 06:32:32.139  7043  7043 V GraphicsEnvironment: ANGLE Developer option for 'com.harira.app' set to: 'default'
+10-18 06:32:32.139  7043  7043 V GraphicsEnvironment: ANGLE GameManagerService for com.harira.app: false
+10-18 06:32:32.152  7043  7043 I WebViewFactory: Loading com.google.android.webview version 109.0.5414.123 (code 541412337)
+10-18 06:32:32.159  7043  7043 W com.harira.app: Entry not found
+10-18 06:32:32.160  7043  7043 D nativeloader: Configuring classloader-namespace for other apk /data/app/~~BsPKIASqdSeWLQRZupU3Qw==/com.google.android.trichromelibrary_541412337-AYwnZDEUZNuBarV2bbAjog==/TrichromeLibrary.apk. target_sdk_version=33, uses_libraries=ALL, library_path=/data/app/~~MEsbcKHVhey19CZoPThX2g==/com.google.android.webview-DfvUF-ewvJJ1GeSzbVmMng==/lib/x86_64:/data/app/~~MEsbcKHVhey19CZoPThX2g==/com.google.android.webview-DfvUF-ewvJJ1GeSzbVmMng==/WebViewGoogle.apk!/lib/x86_64:/data/app/~~BsPKIASqdSeWLQRZupU3Qw==/com.google.android.trichromelibrary_541412337-AYwnZDEUZNuBarV2bbAjog==/TrichromeLibrary.apk!/lib/x86_64, permitted_path=/data:/mnt/expand
+10-18 06:32:32.162  7043  7043 D nativeloader: Configuring classloader-namespace for other apk /data/app/~~MEsbcKHVhey19CZoPThX2g==/com.google.android.webview-DfvUF-ewvJJ1GeSzbVmMng==/WebViewGoogle.apk. target_sdk_version=33, uses_libraries=, library_path=/data/app/~~MEsbcKHVhey19CZoPThX2g==/com.google.android.webview-DfvUF-ewvJJ1GeSzbVmMng==/lib/x86_64:/data/app/~~MEsbcKHVhey19CZoPThX2g==/com.google.android.webview-DfvUF-ewvJJ1GeSzbVmMng==/WebViewGoogle.apk!/lib/x86_64:/data/app/~~BsPKIASqdSeWLQRZupU3Qw==/com.google.android.trichromelibrary_541412337-AYwnZDEUZNuBarV2bbAjog==/TrichromeLibrary.apk!/lib/x86_64, permitted_path=/data:/mnt/expand
+10-18 06:32:32.208  7043  7043 I cr_WVCFactoryProvider: Loaded version=109.0.5414.123 minSdkVersion=29 isBundle=false multiprocess=true packageId=2
+10-18 06:32:32.250  7043  7043 I cr_LibraryLoader: Successfully loaded native library
+10-18 06:32:32.251  7043  7043 I cr_CachingUmaRecorder: Flushed 9 samples from 9 histograms.
+10-18 06:32:32.257  7043  7043 I cr_VariationsUtils: Loaded seed with age 127s
+10-18 06:32:32.274   481   515 I ActivityManager: Start proc 7073:com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0/u0i1 for  {com.harira.app/org.chromium.content.app.SandboxedProcessService0:0}
+10-18 06:32:32.395  7073  7073 I cr_WebViewApkApp: Launched version=109.0.5414.123 minSdkVersion=29 isBundle=false processName=com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0
+10-18 06:32:32.396  7073  7073 I cr_ChildProcessService: Creating new ChildProcessService pid=7073
+10-18 06:32:32.422   481   809 D ConnectivityService: requestNetwork for uid/pid:10174/7043 activeRequest: null callbackRequest: 159 [NetworkRequest [ REQUEST id=160, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10174 RequestorUid: 10174 RequestorPkg: com.harira.app UnderlyingNetworks: Null] ]] callback flags: 0 order: 2147483647
+10-18 06:32:32.427   481   682 D WifiNetworkFactory: got request NetworkRequest [ REQUEST id=160, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10174 RequestorUid: 10174 RequestorPkg: com.harira.app UnderlyingNetworks: Null] ]
+10-18 06:32:32.429   481   682 D UntrustedWifiNetworkFactory: got request NetworkRequest [ REQUEST id=160, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10174 RequestorUid: 10174 RequestorPkg: com.harira.app UnderlyingNetworks: Null] ]
+10-18 06:32:32.429   481   682 D OemPaidWifiNetworkFactory: got request NetworkRequest [ REQUEST id=160, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10174 RequestorUid: 10174 RequestorPkg: com.harira.app UnderlyingNetworks: Null] ]
+10-18 06:32:32.429   481   682 D MultiInternetWifiNetworkFactory: got request NetworkRequest [ REQUEST id=160, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10174 RequestorUid: 10174 RequestorPkg: com.harira.app UnderlyingNetworks: Null] ]
+10-18 06:32:32.446  7043  7093 W cr_media: BLUETOOTH_CONNECT permission is missing.
+10-18 06:32:32.450  7073  7104 I cr_LibraryLoader: Successfully loaded native library
+10-18 06:32:32.451  7073  7104 I cr_CachingUmaRecorder: Flushed 3 samples from 3 histograms.
+10-18 06:32:32.451  7043  7093 W cr_media: registerBluetoothIntentsIfNeeded: Requires BLUETOOTH permission
+10-18 06:32:32.482   481  1863 D CoreBackPreview: Window{fa51c8e u0 com.harira.app/com.harira.app.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@f9e38bc, mPriority=0}
+10-18 06:32:32.884   481   501 I ActivityTaskManager: Displayed com.harira.app/.MainActivity: +958ms
+10-18 06:32:32.898   481  1047 D CoreBackPreview: Window{70bbe58 u0 Splash Screen com.harira.app EXITING}: Setting back callback null
+10-18 06:32:32.898   481  2874 W InputManager-JNI: Input channel object '70bbe58 Splash Screen com.harira.app (client)' was disposed without first being removed with the input manager!
+10-18 06:32:32.915  1436  1436 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1877 onStartInput(EditorInfo{inputType=0x0(NULL) imeOptions=0x0 privateImeOptions=null actionName=UNSPECIFIED actionLabel=null actionId=0 initialSelStart=-1 initialSelEnd=-1 initialCapsMode=0x0 hintText=null label=null packageName=com.harira.app fieldId=-1 fieldName=null extras=null}, false)
+10-18 06:32:57.110  7043  7043 D InputMethodManager: showSoftInput() view=android.webkit.WebView{5cabbe2 VFEDHVC.. .F....ID 0,0-320,616 aid=1073741824} flags=0 reason=SHOW_SOFT_INPUT
+10-18 06:32:57.110  1436  1436 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1877 onStartInput(EditorInfo{inputType=0xe1(WebPassword) imeOptions=0x12000002 privateImeOptions=null actionName=GO actionLabel=null actionId=0 initialSelStart=0 initialSelEnd=0 initialCapsMode=0x0 hintText=null label=null packageName=com.harira.app fieldId=-1 fieldName=null extras=null}, false)
+10-18 06:32:57.111  1436  1436 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1877 onStartInput(EditorInfo{inputType=0xe1(WebPassword) imeOptions=0x12000002 privateImeOptions=null actionName=GO actionLabel=null actionId=0 initialSelStart=0 initialSelEnd=0 initialCapsMode=0x0 hintText=null label=null packageName=com.harira.app fieldId=-1 fieldName=null extras=null}, true)
+10-18 06:32:57.113  1436  1436 I GoogleInputMethodService: GoogleInputMethodService.onStartInputView():1995 onStartInputView(EditorInfo{inputType=0xe1(WebPassword) imeOptions=0x12000002 privateImeOptions=null actionName=GO actionLabel=null actionId=0 initialSelStart=0 initialSelEnd=0 initialCapsMode=0x0 hintText=null label=null packageName=com.harira.app fieldId=-1 fieldName=null extras=null}, false)
+10-18 06:32:57.128   481  2874 D ContentCapturePerUserService: Notified activity assist data for activity: Token{d96976c ActivityRecord{4c99135 u0 com.harira.app/.MainActivity} t10}} without a session Id
+10-18 06:32:57.142  1436  1436 I AndroidIME: AbstractIme.onActivate():86 PasswordIme.onActivate() : EditorInfo = inputType=0xe1(WebPassword) imeOptions=0x12000002 privateImeOptions=null actionName=GO actionLabel=null actionId=0 initialSelStart=0 initialSelEnd=0 initialCapsMode=0x0 hintText=null label=null packageName=com.harira.app fieldId=-1 fieldName=null extras=null, IncognitoMode = false, DeviceLocked = false
+10-18 06:32:57.153   481  1605 D CoreBackPreview: Window{fa51c8e u0 com.harira.app/com.harira.app.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@b0256ea, mPriority=0}
+10-18 06:33:00.330   481  2874 D CoreBackPreview: Window{fa51c8e u0 com.harira.app/com.harira.app.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@749802, mPriority=0}
+10-18 06:33:00.330  1436  1436 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1877 onStartInput(EditorInfo{inputType=0x0(NULL) imeOptions=0x12000000 privateImeOptions=null actionName=UNSPECIFIED actionLabel=null actionId=0 initialSelStart=-1 initialSelEnd=-1 initialCapsMode=0x0 hintText=null label=null packageName=com.harira.app fieldId=-1 fieldName=null extras=null}, true)
+10-18 06:33:08.442  7245  7245 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-18 06:33:08.461  7245  7245 I AndroidRuntime: Using default boot image
+10-18 06:33:08.461  7245  7245 I AndroidRuntime: Leaving lock profiling enabled
+10-18 06:33:08.605  7245  7245 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+10-18 06:33:09.673  7245  7245 D AndroidRuntime: Shutting down VM
+10-18 06:33:15.634  7286  7286 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-18 06:33:15.636  7286  7286 I AndroidRuntime: Using default boot image
+10-18 06:33:15.636  7286  7286 I AndroidRuntime: Leaving lock profiling enabled
+10-18 06:33:15.688  7286  7286 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+10-18 06:33:16.703  7286  7286 D AndroidRuntime: Shutting down VM
+10-18 06:33:47.691  7326  7326 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-18 06:33:47.695  7326  7326 I AndroidRuntime: Using default boot image
+10-18 06:33:47.695  7326  7326 I AndroidRuntime: Leaving lock profiling enabled
+10-18 06:33:47.752  7326  7326 D AndroidRuntime: Calling main entry com.android.commands.content.Content
+10-18 06:33:47.760  7326  7326 D AndroidRuntime: Shutting down VM
+10-18 06:33:51.654   481   499 I ActivityTaskManager: START u0 {act=android.intent.action.SEND typ=image/jpeg flg=0x10000000 cmp=com.harira.app/.MainActivity (has extras)} from uid 2000
+10-18 06:33:51.664  1512  5733 E DatabaseUtils: java.lang.SecurityException: com.harira.app has no access to content://media/external/images/media/1000000019
+10-18 06:34:20.934  1436  1436 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1877 onStartInput(EditorInfo{inputType=0xd1(WebEmailAddress) imeOptions=0x12000005 privateImeOptions=null actionName=NEXT actionLabel=null actionId=0 initialSelStart=0 initialSelEnd=0 initialCapsMode=0x0 hintText=null label=null packageName=com.harira.app fieldId=-1 fieldName=null extras=null}, true)
+10-18 06:34:20.936  7043  7043 D InputMethodManager: showSoftInput() view=android.webkit.WebView{5cabbe2 VFEDHVC.. .F...... 0,0-320,616 aid=1073741824} flags=0 reason=SHOW_SOFT_INPUT
+10-18 06:34:20.940   481  1875 D ContentCapturePerUserService: Notified activity assist data for activity: Token{d96976c ActivityRecord{4c99135 u0 com.harira.app/.MainActivity} t10}} without a session Id
+10-18 06:34:20.945  1436  1436 I GoogleInputMethodService: GoogleInputMethodService.onStartInputView():1995 onStartInputView(EditorInfo{inputType=0xd1(WebEmailAddress) imeOptions=0x12000005 privateImeOptions=null actionName=NEXT actionLabel=null actionId=0 initialSelStart=0 initialSelEnd=0 initialCapsMode=0x0 hintText=null label=null packageName=com.harira.app fieldId=-1 fieldName=null extras=null}, false)
+10-18 06:34:21.013  1436  1436 I AndroidIME: AbstractIme.onActivate():86 LatinIme.onActivate() : EditorInfo = inputType=0xd1(WebEmailAddress) imeOptions=0x12000005 privateImeOptions=null actionName=NEXT actionLabel=null actionId=0 initialSelStart=0 initialSelEnd=0 initialCapsMode=0x0 hintText=null label=null packageName=com.harira.app fieldId=-1 fieldName=null extras=null, IncognitoMode = false, DeviceLocked = false
+10-18 06:34:21.036   481  2792 D CoreBackPreview: Window{fa51c8e u0 com.harira.app/com.harira.app.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@e2b733c, mPriority=0}

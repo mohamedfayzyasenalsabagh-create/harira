@@ -1,0 +1,19 @@
+PASS | تنزيل من الرابط العام (49775 بايت)
+الموقع: 200
+PASS | تثبيت التطبيق
+شبكة الجوال الافتراضي:
+PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
+
+--- 8.8.8.8 ping statistics ---
+2 packets transmitted, 0 received, 100% packet loss, time 1022ms
+
+PING github.io (185.199.108.153) 56(84) bytes of data.
+
+--- github.io ping statistics ---
+1 packets transmitted, 0 received, 100% packet loss, time 0ms
+
+PASS | فتح التطبيق
+tap shutter (resource-id="[^"]*shutter[^"]*"|content-desc="[^"]*(Shutter|shutter|Take photo|Capture)[^"]*"): not found
+tap confirm (resource-id="[^"]*(done|confirm|ok_button)[^"]*"|content-desc="[^"]*(Done|OK|Confirm)[^"]*"): not found
+صورة الاختبار: 1000000019
+PASS | لا انهيار
