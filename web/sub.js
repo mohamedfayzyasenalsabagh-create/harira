@@ -5,15 +5,14 @@ const SUB = {
   reqTopic: "harira-req-3bd3211bb1a8ac82",
   actPrefix: "harira-act-",
   actsTopic: "harira-acts-421447b9281ebd95", // نسخة من كل تفعيل، بتنجمع بملف دائم subs.json
-  usersTopic: "harira-users-56e050312e004ecf", // تسجيل المستخدمين (مشفّر للأدمن)، بينجمع بملف دائم users.json
+  usersTopic: "harira-users-56e050312e004ecf",
+  cfgTopic: "harira-cfg-93c8fa588cd0305d", // إعدادات الأدمن (موقّعة)، بتنجمع بملف دائم config.json // تسجيل المستخدمين (مشفّر للأدمن)، بينجمع بملف دائم users.json
   ntfy: "https://ntfy.sh/",
   wallet: "a36711eeff08f6ce348f796383159a22",
   trialDays: 3,
   config: { price: "", currency: "ل.س", whatsapp: "" },
 };
-fetch("config.json", { cache: "no-cache" }).then(r => r.json()).then(c => { Object.assign(SUB.config, c); if (typeof render === "function" && !document.querySelector(".sheet-bg")) render(); }).catch(() => {});
-
-const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const b64u = buf => { const u = new Uint8Array(buf); let s = ""; for (let i = 0; i < u.length; i += 8192) s += String.fromCharCode.apply(null, u.subarray(i, i + 8192)); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
 const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
 const utf8 = s => new TextEncoder().encode(s);
 
@@ -94,6 +93,42 @@ async function verifyToken(token) {
   } catch (e) { return null; }
 }
 
+// ===== إعدادات التطبيق من لوحة الأدمن (السعر، التجربة، الدعم، المحفظة، الإعلان…) =====
+// الملف الدائم config.json + آخر تعديل موقّع من الأدمن (بيوصل فوراً قبل ما ينحفظ بالملف)
+async function verifySigned(token) {
+  try {
+    const [p, s] = String(token).trim().split(".");
+    const pub = await crypto.subtle.importKey("jwk", { kty: "EC", crv: "P-256", ...SUB.signPub, ext: true }, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+    if (!await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pub, unb64u(s), utf8(p))) return null;
+    return JSON.parse(new TextDecoder().decode(unb64u(p)));
+  } catch (e) { return null; }
+}
+let cfgIat = 0;
+function applyConfig(c) {
+  Object.assign(SUB.config, c);
+  if (c.trialDays != null && c.trialDays !== "") SUB.trialDays = Math.max(0, +c.trialDays);
+  if (c.wallet) SUB.wallet = c.wallet;
+  try { subState.trialEnds = trialEnds(); } catch (e) {}
+}
+async function loadConfig() {
+  try { const c = await (await fetch("config.json", { cache: "no-cache" })).json(); applyConfig(c); cfgIat = c.iat || 0; } catch (e) {}
+  try {
+    const lines = (await (await fetch(SUB.ntfy + SUB.cfgTopic + "/json?poll=1&since=all")).text()).split("\n").filter(Boolean);
+    let best = null;
+    for (const l of lines) {
+      let m; try { m = JSON.parse(l); } catch (e) { continue; }
+      if (m.event !== "message") continue;
+      let tok = m.message;
+      if (m.attachment) { try { tok = await (await fetch(m.attachment.url)).text(); } catch (e) { continue; } }
+      const d = await verifySigned(tok);
+      if (d && d.t === "cfg" && d.cfg && d.iat > cfgIat && (!best || d.iat > best.iat)) best = d;
+    }
+    if (best) { applyConfig({ ...best.cfg, iat: best.iat }); cfgIat = best.iat; }
+  } catch (e) {}
+  if (typeof render === "function" && !document.querySelector(".sheet-bg")) render();
+}
+const cfgReady = loadConfig();
+
 // حالة الاشتراك
 const subState = { active: false, lifetime: false, exp: 0, trialEnds: 0, checked: false };
 function trialEnds() {
@@ -116,7 +151,7 @@ try { const c = JSON.parse(localStorage.getItem("harira-sub-cache") || "null"); 
 }
 subState.trialEnds = trialEnds();
 try { const c = JSON.parse(localStorage.getItem("harira-sub-cache") || "null"); if (c && (c.exp === 0 || c.exp > Date.now())) Object.assign(subState, { active: true, lifetime: c.exp === 0, exp: c.exp }); } catch (e) {}
-const isPremium = () => subState.active || isAdmin() || (subState.plan !== "stop" && Date.now() < subState.trialEnds); // الإيقاف من الأدمن بيلغي التجربة كمان
+const isPremium = () => subState.active || isAdmin() || !!SUB.config.free || (subState.plan !== "stop" && Date.now() < subState.trialEnds); // الإيقاف من الأدمن بيلغي التجربة كمان
 const inTrial = () => !subState.active && subState.plan !== "stop" && Date.now() < subState.trialEnds;
 
 async function applyToken(token) {

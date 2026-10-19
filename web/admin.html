@@ -87,7 +87,7 @@ a{color:var(--herb)}
 .log{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}.log:first-child{border-top:0}
 .log span:first-child{font-size:18px}
 /* شريط التبويب */
-nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--card);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);
+nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--card);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);
   padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
 .tab{border:0;background:none;padding:7px 2px;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:var(--muted);position:relative}
 .tab span{font-size:20px;line-height:1}
@@ -99,6 +99,12 @@ nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--card
   padding:20px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .lightbox{position:fixed;inset:0;z-index:40;background:rgb(0 0 0 / .9);display:grid;place-items:center;padding:16px}
 .lightbox img{max-width:100%;max-height:100%;border-radius:8px}
+.field{display:flex;flex-direction:column;gap:4px}.field label{font-size:13px;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 0}
+.switch input{width:22px;height:22px;flex:none;accent-color:var(--herb)}
+textarea{width:100%;padding:11px 13px;border-radius:12px;border:1px solid var(--line);background:var(--card);font:inherit;color:inherit;resize:vertical}
+.qr-prev{width:120px;height:120px;object-fit:contain;border-radius:12px;border:1px solid var(--line);background:#fff}
 .toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(14px + env(safe-area-inset-top,0px));max-width:calc(100% - 32px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;z-index:50;font-size:14px}
 </style>
 </head>
@@ -108,12 +114,15 @@ nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--card
   <button class="tab" data-v="reqs"><span>📥</span>الطلبات</button>
   <button class="tab" data-v="subs"><span>👥</span>المستخدمين</button>
   <button class="tab" data-v="log"><span>🕘</span>السجل</button>
+  <button class="tab" data-v="set"><span>⚙️</span>الإعدادات</button>
 </nav>
 <script src="sub.js"></script>
 <script>
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const DAY = 864e5, PLANS = { m1: ["شهر", 30], m3: ["٣ أشهر", 90], y1: ["سنة", 365], life: ["مدى الحياة", 0] };
+const priceOf = k => { const c = SUB.config, m = +c.price || 500; return k === "m1" ? m : k === "m3" ? (+c.p3 || m * 3) : k === "y1" ? (+c.p12 || m * 12) : 0; };
+let draft = null, savingCfg = false;
 const fmtN = n => Math.round(n).toLocaleString("ar-SY");
 const fmtDate = t => t === 0 ? "مدى الحياة" : new Date(t).toLocaleDateString("ar-SY", { day: "numeric", month: "short", year: "numeric" });
 const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "هلق" : m < 60 ? "من " + fmtN(m) + " د" : m < 1440 ? "من " + fmtN(m / 60) + " س" : "من " + fmtN(m / 1440) + " يوم"; };
@@ -270,13 +279,13 @@ function render() {
 
   let body = "";
   if (view === "reqs") {
-    body = pend.length ? pend.map(([rid, r]) => { const pp = pickPlan[rid] || "m1"; return `<div class="card req">
+    body = pend.length ? pend.map(([rid, r]) => { const pp = pickPlan[rid] || (PLANS[r.plan] ? r.plan : "m1"); return `<div class="card req">
       ${r.receipt ? `<img src="${r.receipt}" alt="الإيصال" data-img="${rid}">` : `<div class="noimg">ما في صورة</div>`}
       <div class="meta"><div class="row between"><b>${esc(r.name)}</b><span class="pill p-new">⏳ ${ago(r.ts)}</span></div>
         ${r.email ? `<small class="muted" dir="ltr" style="text-align:end">${esc(r.email)}</small>` : ""}
         <small><a href="${waLink(r.phone)}" target="_blank" rel="noopener" dir="ltr">📞 ${esc(r.phone)}</a></small>
         ${subs[r.id] && isActive(subs[r.id]) ? `<small><span class="pill p-ok">مشترك لحد ${fmtDate(subs[r.id].exp)}</span> التفعيل بيمدّد</small>` : ""}</div>
-      <div class="actions"><div class="plan-pick">${Object.entries(PLANS).map(([k, [l, d]]) => `<button data-pick="${rid}|${k}" aria-pressed="${pp === k}"><b>${l}</b>${d ? `<small class="muted num">${fmtN(price * d / 30)} ل.س</small>` : `<small class="muted">مجاني</small>`}</button>`).join("")}</div>
+      <div class="actions"><div class="plan-pick">${Object.entries(PLANS).map(([k, [l, d]]) => `<button data-pick="${rid}|${k}" aria-pressed="${pp === k}"><b>${l}</b>${d ? `<small class="muted num">${fmtN(priceOf(k))} ${esc(SUB.config.currency || "ل.س")}</small>` : `<small class="muted">مجاني</small>`}</button>`).join("")}</div>
         <div class="row"><button class="btn" data-ok="${rid}" style="flex:1">✓ موافقة · ${PLANS[pp][0]}</button><button class="btn soft-red" data-rej="${rid}">رفض</button></div></div></div>`; }).join("")
       : `<div class="card empty"><span style="font-size:40px">🎉</span><b>ما في طلبات معلّقة</b>كل ما حدا يبعت إيصال بيطلع هون، وبتتحدّث الصفحة لحالها كل ٣٠ ثانية.</div>`;
     const done = Object.entries(REQS).filter(([, r]) => r.status !== "new").sort((a, b) => (b[1].decided || 0) - (a[1].decided || 0)).slice(0, 5);
@@ -300,6 +309,32 @@ function render() {
           ${isActive(s) && s.exp ? `<div class="days ${s.exp - now < 7 * DAY ? "low" : ""}"><i style="width:${Math.max(0, Math.min(100, (s.exp - now) / (30 * DAY) * 100))}%"></i></div>` : ""}</div>
         <span class="row" style="gap:4px;flex-wrap:nowrap">${pill(s)}<span class="muted" aria-hidden="true">‹</span></span></div>`).join("")
         : `<div class="empty"><b>ما في نتائج</b>${list.length ? "جرّب فلتر تاني." : "أول ما حدا يسجل بالتطبيق بيطلع هون."}</div>`}</div>`;
+  }
+  if (view === "set") {
+    const c = SUB.config;
+    if (!draft) draft = { price: c.price || "500", currency: c.currency || "ل.س", p3: c.p3 || "", p12: c.p12 || "", trialDays: c.trialDays ?? SUB.trialDays, whatsapp: c.whatsapp || "", wallet: c.wallet || SUB.wallet, qr: c.qr || "", notice: c.notice || "", free: !!c.free };
+    const d = draft, inp = (k, lbl, type, ph, extra) => `<div class="field"><label for="c-${k}">${lbl}</label><input id="c-${k}" data-c="${k}" type="${type || "text"}" value="${esc(d[k])}" placeholder="${ph || ""}" ${extra || ""}></div>`;
+    body = `<div class="card"><h2>💰 الاشتراك والأسعار</h2>
+        <div class="two">${inp("price", "سعر الشهر", "number", "500", 'inputmode="numeric"')}${inp("currency", "العملة", "text", "ل.س")}</div>
+        <div class="two">${inp("p3", "سعر ٣ أشهر (اختياري)", "number", "مثلاً ١٢٠٠", 'inputmode="numeric"')}${inp("p12", "سعر السنة (اختياري)", "number", "مثلاً ٤٥٠٠", 'inputmode="numeric"')}</div>
+        <small class="muted">إذا حطيت سعر للـ٣ أشهر أو السنة، المستخدم بيقدر يختار الباقة وبيشوف قديش بيوفّر.</small>
+        ${inp("trialDays", "أيام التجربة المجانية", "number", "3", 'inputmode="numeric" min="0" max="60"')}
+        <label class="switch"><span><b>🎁 التطبيق مجاني للكل</b><br><small class="muted">لعرض أو مناسبة. كل الميزات بتنفتح لكل الناس لحد ما تطفيه.</small></span><input type="checkbox" data-c="free" ${d.free ? "checked" : ""}></label></div>
+      <div class="card"><h2>💳 الدفع (شام كاش)</h2>
+        ${inp("wallet", "كود المحفظة", "text", "", 'dir="ltr"')}
+        <div class="row" style="gap:12px"><img class="qr-prev" src="${d.qr || "pay-qr.jpg"}" alt="QR"><div class="stack" style="flex:1;display:flex;flex-direction:column;gap:8px">
+          <label class="btn ghost" for="c-qrf" style="text-align:center">📷 تغيير صورة QR</label><input id="c-qrf" type="file" accept="image/*" hidden>
+          ${d.qr ? `<button class="btn soft-red sm" id="c-qrx">رجّع الصورة الأصلية</button>` : ""}</div></div></div>
+      <div class="card"><h2>📞 الدعم</h2>${inp("whatsapp", "رقم الدعم (واتساب)", "tel", "09…", 'dir="ltr" inputmode="tel"')}</div>
+      <div class="card"><h2>📢 إعلان لكل المستخدمين</h2>
+        <div class="field"><label for="c-notice">بيطلع فوق الشاشة الرئيسية عند الكل (فاضي = ما في إعلان)</label><textarea id="c-notice" data-c="notice" rows="3" placeholder="مثلاً: عرض العيد! اشتراك ٣ أشهر بـ ١٠٠٠ ل.س بس 🎉">${esc(d.notice)}</textarea></div></div>
+      <button class="btn" id="c-save" ${savingCfg ? "disabled" : ""} style="position:sticky;bottom:84px">${savingCfg ? "عم احفظ…" : "💾 احفظ وطبّق على الكل"}</button>
+      <div class="card"><h2>🔐 كلمة سر الأدمن</h2>
+        <small class="muted">بعد التغيير، كلمة السر الجديدة بتشتغل بتسجيل الدخول خلال ساعة تقريباً. لحد هداك الوقت القديمة بتضل شغّالة.</small>
+        <div class="field"><label for="pw-old">كلمة السر الحالية</label><input id="pw-old" type="password" dir="ltr" autocomplete="current-password"></div>
+        <div class="field"><label for="pw-new">الجديدة (٨ أحرف أو أكتر)</label><input id="pw-new" type="password" dir="ltr" autocomplete="new-password"></div>
+        <div class="field"><label for="pw-new2">أعد كتابة الجديدة</label><input id="pw-new2" type="password" dir="ltr" autocomplete="new-password"></div>
+        <button class="btn ghost" id="pw-go">تغيير كلمة السر</button></div>`;
   }
   if (view === "log") {
     body = `<div class="card">${LOG.length ? LOG.slice(0, 60).map(l => `<div class="log"><span>${l.icon}</span><span style="flex:1">${esc(l.text)}</span><small class="muted">${ago(l.t)}</small></div>`).join("") : `<div class="empty"><b>السجل فاضي</b>كل موافقة أو رفض أو تفعيل بيتسجل هون.</div>`}</div>`;
@@ -341,10 +376,67 @@ function render() {
         close();
         if (p === "stop") confirmSheet("إيقاف " + esc(who(s)), "التطبيق عنده رح يتقفل لحد ما تفعّله من جديد.", "⛔ أوقف", true, () => grant(id, "stop", who(s)));
         else confirmSheet((isActive(s) ? "تمديد " : "تفعيل ") + esc(who(s)), p === "life" ? "رح ينفتحله التطبيق مدى الحياة مجاناً." : "رح ينضاف " + PLANS[p][0] + " لاشتراكه.", "✓ تأكيد", false, () => grant(id, p, who(s))); }); }); });
+  bindSettings(m);
+}
+function bindSettings(m) {
+  if (view !== "set") return;
+  m.querySelectorAll("[data-c]").forEach(i => i[i.type === "checkbox" ? "onchange" : "oninput"] = () => { draft[i.dataset.c] = i.type === "checkbox" ? i.checked : i.value; });
+  const qf = $("#c-qrf"); if (qf) qf.onchange = async () => {
+    const f = qf.files[0]; if (!f) return;
+    try { draft.qr = await shrinkTo(f, 520, 0.85); render(); toast("✓ الصورة جاهزة، اكبس احفظ"); } catch (e) { toast("ما قدرت افتح الصورة"); }
+  };
+  const qx = $("#c-qrx"); if (qx) qx.onclick = () => { draft.qr = ""; render(); };
+  $("#c-save").onclick = () => saveConfig();
+  $("#pw-go").onclick = () => changePassword();
+}
+async function postSigned(obj) {
+  const tok = await sign(obj);
+  const big = tok.length > 3500;
+  const r = await fetch(SUB.ntfy + SUB.cfgTopic + (big ? "?filename=cfg.txt" : ""), { method: big ? "PUT" : "POST", body: tok });
+  if (!r.ok) throw new Error("ما انبعت");
+}
+async function saveConfig() {
+  const d = draft, num = v => String(v ?? "").replace(/[٠-٩]/g, c => "٠١٢٣٤٥٦٧٨٩".indexOf(c)).replace(/[^\d.]/g, "");
+  const cfg = { price: num(d.price), currency: String(d.currency || "ل.س").trim(), p3: num(d.p3), p12: num(d.p12), trialDays: Math.max(0, Math.min(60, +num(d.trialDays) || 0)),
+    whatsapp: String(d.whatsapp || "").trim(), wallet: String(d.wallet || "").trim(), notice: String(d.notice || "").trim(), free: !!d.free };
+  if (d.qr) cfg.qr = d.qr;
+  if (!+cfg.price) return toast("اكتب سعر الشهر");
+  if (!cfg.wallet) return toast("اكتب كود المحفظة");
+  confirmSheet("تطبيق الإعدادات", `رح تتطبّق على كل المستخدمين خلال دقيقة.${cfg.free ? "<br><b>انتبه: التطبيق رح يصير مجاني للكل.</b>" : ""}`, "💾 احفظ", false, async () => {
+    savingCfg = true; render();
+    try {
+      const iat = Date.now();
+      await postSigned({ t: "cfg", iat, cfg });
+      applyConfig({ ...cfg, iat }); cfgIat = iat; draft = null;
+      addLog("⚙️", "تعديل الإعدادات · الشهر " + cfg.price + (cfg.free ? " · مجاني للكل" : "") + (cfg.notice ? " · إعلان" : ""));
+      toast("✓ انحفظت وبتوصل للكل خلال دقيقة");
+    } catch (e) { toast("ما قدرت احفظ. تأكد من النت وجرب كمان مرة"); }
+    savingCfg = false; render();
+  });
+}
+async function changePassword() {
+  const old = $("#pw-old").value, nw = $("#pw-new").value, nw2 = $("#pw-new2").value;
+  if (nw.length < 8) return toast("كلمة السر الجديدة لازم تكون ٨ أحرف أو أكتر");
+  if (nw !== nw2) return toast("الكلمتين مو متطابقين");
+  const acc = getAccount(); const email = acc && acc.email;
+  if (!email) return toast("سجّل دخول من التطبيق بإيميل الأدمن أول");
+  try {
+    const ak = await (await fetch("admin-keys.json", { cache: "no-cache" })).json();
+    const k0 = await crypto.subtle.importKey("raw", await pbkdf2(old, new Uint8Array([...unb64u(ak.salt), ...utf8(email)]), ak.it, 32), "AES-GCM", false, ["decrypt"]);
+    try { await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64u(ak.iv) }, k0, unb64u(ak.ct)); } catch (e) { return toast("كلمة السر الحالية غلط"); }
+    const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12)), it = 310000;
+    const k1 = await crypto.subtle.importKey("raw", await pbkdf2(nw, new Uint8Array([...salt, ...utf8(email)]), it, 32), "AES-GCM", false, ["encrypt"]);
+    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, k1, utf8(JSON.stringify(KEYS)));
+    const nak = { v: 1, salt: b64u(salt), it, iv: b64u(iv), ct: b64u(ct), eh: await sha256hex(email) };
+    await postSigned({ t: "keys", iat: Date.now(), ak: nak });
+    ["#pw-old", "#pw-new", "#pw-new2"].forEach(x => $(x).value = "");
+    addLog("🔐", "تغيير كلمة سر الأدمن");
+    toast("✓ تغيّرت. الجديدة بتشتغل خلال ساعة تقريباً");
+  } catch (e) { toast("ما زبط، تأكد من النت وجرب كمان مرة"); }
 }
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => { view = t.dataset.v; render(); scrollTo(0, 0); });
 render();
-if (KEYS) { sync(); setInterval(() => { if (!document.querySelector(".sheet-bg") && !(document.activeElement && document.activeElement.tagName === "INPUT")) sync(); }, 30000); }
+if (KEYS) { sync(); setInterval(() => { if (!document.querySelector(".sheet-bg") && !(document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName))) sync(); }, 30000); }
 </script>
 </body>
 </html>

@@ -78,3 +78,33 @@ for line in ulines:
         continue
 json.dump(users, open(users_f, "w"), separators=(",", ":"))
 print(f"users_msgs={len(ulines)} new={nu} total={len(users)}")
+
+# ===== إعدادات الأدمن وكلمة سرّه: رسائل موقّعة بمفتاح الأدمن، منحفظ آخر وحدة =====
+cfg_topic = os.environ.get("CFG_TOPIC") or _re.search(r'cfgTopic: "([^"]+)"', sub_js).group(1)
+cfg_f = os.environ.get("CONFIG_FILE", "web/config.json")
+keys_f = os.environ.get("KEYS_FILE", "web/admin-keys.json")
+cfg = json.load(open(cfg_f, encoding="utf-8")) if os.path.exists(cfg_f) else {}
+akeys = json.load(open(keys_f)) if os.path.exists(keys_f) else {}
+clines = urllib.request.urlopen(urllib.request.Request(f"https://ntfy.sh/{cfg_topic}/json?poll=1&since=all", headers={"User-Agent": "harira-collector"}), timeout=60).read().decode().splitlines()
+best_cfg, best_keys = None, None
+for line in clines:
+    try:
+        m = json.loads(line)
+        if m.get("event") != "message": continue
+        tok = m.get("message", "")
+        if m.get("attachment"):
+            tok = urllib.request.urlopen(urllib.request.Request(m["attachment"]["url"], headers={"User-Agent": "harira-collector"}), timeout=60).read().decode()
+        p_, s_ = tok.strip().split(".")
+        sig = d64(s_); pub.verify(utils.encode_dss_signature(int.from_bytes(sig[:32], "big"), int.from_bytes(sig[32:], "big")), p_.encode(), ec.ECDSA(hashes.SHA256()))
+        data = json.loads(d64(p_))
+        if data.get("t") == "cfg" and isinstance(data.get("cfg"), dict) and data["iat"] > cfg.get("iat", 0) and (not best_cfg or data["iat"] > best_cfg["iat"]): best_cfg = data
+        if data.get("t") == "keys" and isinstance(data.get("ak"), dict) and data["iat"] > akeys.get("iat", 0) and (not best_keys or data["iat"] > best_keys["iat"]): best_keys = data
+    except Exception:
+        continue
+if best_cfg:
+    json.dump({**best_cfg["cfg"], "iat": best_cfg["iat"]}, open(cfg_f, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+if best_keys:
+    ak = best_keys["ak"]
+    if all(k in ak for k in ("salt", "it", "iv", "ct", "eh")):
+        json.dump({**{k: ak[k] for k in ("v", "salt", "it", "iv", "ct", "eh") if k in ak}, "iat": best_keys["iat"]}, open(keys_f, "w"), separators=(",", ":"))
+print(f"cfg_msgs={len(clines)} cfg={'new' if best_cfg else 'same'} keys={'new' if best_keys else 'same'}")

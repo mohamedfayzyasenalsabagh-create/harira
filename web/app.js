@@ -104,7 +104,7 @@ function renderToday() {
   const name = (prof().name || "").split(" ")[0];
   const h = new Date().getHours(), hello = h < 12 ? "صباح الخير" : h < 18 ? "نهارك سعيد" : "مسا الخير";
   app.innerHTML = `
-  ${updateBanner()}${renewBanner()}
+  ${updateBanner()}${renewBanner()}${noticeBanner()}
   <div class="head"><div style="min-width:0"><small class="muted">${hello}${name ? "،" : ""}</small><h1 style="font-size:24px">${name ? esc(name) : "حريره"} ${streak() >= 2 ? `<span class="streak num">🔥${fmt(streak())}</span>` : ""}</h1></div>
     <div class="row" style="gap:6px"><button class="chip" id="subchip" style="${subState.active || isAdmin() ? "" : "background:var(--saffron);border-color:var(--saffron);color:#1E2A20"}">${subBadge()}</button>
     <button class="icon-btn" id="bell" aria-label="التذكيرات">🔔</button></div></div>
@@ -249,6 +249,24 @@ function updateBanner() {
     <span class="row" style="gap:6px"><a class="chip" href="${APK_URL}" style="text-decoration:none;color:inherit">نزّلها</a><button class="chip" id="upd-x">لاحقاً</button></span></div>`;
 }
 
+// باقات الاشتراك حسب إعدادات الأدمن: [كود، اسم، سعر، ملاحظة توفير]
+function planOptions() {
+  const c = SUB.config, m = +c.price || 0, out = [];
+  if (m) out.push(["m1", "شهر", m, ""]);
+  const save = (pr, n) => m && pr < m * n ? "وفّر " + fmt(Math.round((1 - pr / (m * n)) * 100)) + "٪" : "";
+  if (+c.p3) out.push(["m3", "٣ أشهر", +c.p3, save(+c.p3, 3)]);
+  if (+c.p12) out.push(["y1", "سنة", +c.p12, save(+c.p12, 12)]);
+  return out;
+}
+// إعلان من الأدمن لكل المستخدمين
+function noticeBanner() {
+  const t = String(SUB.config.notice || "").trim(); if (!t) return "";
+  let hid = ""; try { hid = localStorage.getItem("harira-notice-x") || ""; } catch (e) {}
+  if (hid === t) return "";
+  return `<div class="note row between" style="gap:8px;margin-bottom:12px;align-items:flex-start"><span style="white-space:pre-line">📢 ${esc(t)}</span><button class="chip" id="notice-x" aria-label="سكّر">✕</button></div>`;
+}
+document.addEventListener("click", e => { if (e.target.closest && e.target.closest("#notice-x")) { try { localStorage.setItem("harira-notice-x", String(SUB.config.notice || "").trim()); } catch (x) {} render(); } });
+
 // ===== الدعم =====
 function supportBox() {
   const n = SUB.config.whatsapp; if (!n) return "";
@@ -282,10 +300,11 @@ function subSheet(reason) {
     body = `${reason ? `<div class="note">«${esc(reason)}» للمشتركين. ${inTrial() ? "" : "خلصت التجربة المجانية."}</div>` : ""}
       ${renewing ? `<div class="note" style="background:var(--tomato-soft)">⏳ اشتراكك بيخلص ${new Date(subState.exp).toLocaleDateString(LOC, { day: "numeric", month: "long" })}. جدّد هلق، والمدة الجديدة بتنضاف على اللي باقي.</div>` : ""}
       <ul style="margin:0;padding-inline-start:20px;line-height:1.9">${PREMIUM_FEATURES.map(f => `<li>${f}</li>`).join("")}</ul>
-      ${price ? `<div class="row between"><b>الاشتراك الشهري</b><b class="num" style="color:var(--herb);font-size:20px">${esc(price)} ${esc(SUB.config.currency)}</b></div>` : ""}
+      ${planOptions().length > 1 ? `<b>اختار باقتك:</b><div class="stack" style="gap:6px" id="s-plans">${planOptions().map(([k, l, pr, note], i) => `<label class="list-row" style="cursor:pointer;gap:10px"><span class="row" style="gap:10px"><input type="radio" name="s-plan" value="${k}" ${i === 0 ? "checked" : ""} style="width:20px;height:20px">${l}${note ? ` <small style="color:var(--herb);font-weight:700">${note}</small>` : ""}</span><b class="num" style="color:var(--herb)">${fmt(pr)} ${esc(SUB.config.currency)}</b></label>`).join("")}</div>`
+        : price ? `<div class="row between"><b>الاشتراك الشهري</b><b class="num" style="color:var(--herb);font-size:20px">${esc(price)} ${esc(SUB.config.currency)}</b></div>` : ""}
       ${req && req.status === "rejected" ? `<div class="note" style="background:var(--tomato-soft)">طلبك السابق ما انقبل${req.why ? ": " + esc(req.why) : ""}. تأكد من الإيصال وابعت من جديد.</div>` : ""}
       <b>١. ادفع بشام كاش على هالكود:</b>
-      <img src="pay-qr.jpg" alt="QR شام كاش" style="width:100%;max-width:300px;align-self:center;border-radius:14px">
+      <img src="${SUB.config.qr || "pay-qr.jpg"}" alt="QR شام كاش" style="width:100%;max-width:300px;align-self:center;border-radius:14px">
       <div class="row"><code style="direction:ltr;flex:1;font-size:13px;word-break:break-all">${SUB.wallet}</code><button class="chip" id="copy-w">نسخ</button></div>
       <b>٢. ابعت صورة الإيصال:</b>
       <label class="muted" for="s-name">اسمك</label><input id="s-name" type="text" value="${esc((req && req.name) || (getAccount() || {}).name || "")}">
@@ -307,7 +326,7 @@ function subSheet(reason) {
       if (!name || phone.replace(/\D/g, "").length < 8) return toast("اكتب اسمك ورقم موبايلك");
       if (!file) return toast("اختار صورة الإيصال");
       send.disabled = true; send.textContent = "عم ابعت…";
-      try { await sendSubRequest({ name, phone, plan: "m1", file }); toast("وصل طلبك! بيتفعّل أول ما ينقبل"); closeSheet(); render(); startPolling(); }
+      try { await sendSubRequest({ name, phone, plan: (el.querySelector("[name=s-plan]:checked") || {}).value || "m1", file }); toast("وصل طلبك! بيتفعّل أول ما ينقبل"); closeSheet(); render(); startPolling(); }
       catch (e) { toast(e.message || "ما زبط، جرب كمان مرة"); send.disabled = false; send.textContent = "ابعت الطلب"; }
     };
     const chk = $("#sub-check", el); if (chk) chk.onclick = async () => { chk.disabled = true; const c = await pollActivation(); await refreshSub(); closeSheet(); render(); toast(c ? "انحدّث وضع اشتراكك" : "لسا ما في رد، بيوصلك لحاله"); };
